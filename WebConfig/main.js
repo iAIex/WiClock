@@ -3,8 +3,10 @@ var LEDarr = {
   "height":"8",
   "color":"red",
   "mask":"resources/mask2_tp.png",
-  "scale":"20"
+  "scale":"50"
 };
+
+var states = []; //Stores state of all pixels
 
 var mask = new Image();
 mask.src=LEDarr.mask;
@@ -37,13 +39,28 @@ function renderDots(dotArray){
     ctx.drawImage(mask,dotArray[i][0]*LEDarr.scale,dotArray[i][1]*LEDarr.scale,LEDarr.scale,LEDarr.scale);
   }
 }
+
+function initStates() {
+    for(var y=0;y<LEDarr.height;y++){
+      states[y]=[];
+      for(var x=0;x<LEDarr.height;x++){
+        states[y][x]=undefined;
+      }
+    }
+}
+
+initStates();
 resizeView();
-window.addEventListener('resize', resizeView, false);
+//window.addEventListener('resize', resizeView, false);
 
 
 function resizeView(){
-  LEDarr.scale=Math.floor(((window.innerWidth-500)/LEDarr.width));
+  //LEDarr.scale=Math.floor(((window.innerWidth-500)/LEDarr.width));
   clearDots();
   daDots=[[0,0,"green"],[1,1,"#ABC"],[2,2]];
   renderDots(daDots);
+}
+
+function decodeRes(){
+
 }
