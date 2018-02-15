@@ -5,11 +5,11 @@ This guide is still a work in progress!
 
 ## Tags
 Each element displayed by your widget is represented by a tag. A tag looks like this: `[tagname_here]`. The name of the tag can be chosen freely within certain constraints/rules:
-1. Tagnames must be unique within your widget
+1. Tagnames must be unique within your widget  
    -If two tags share the same name the tag which comes last in your widget file "wins"
-2. Some tagnames are reserved for special use
+2. Some tagnames are reserved for special use  
    -E.g. the `[Meta]` (more on this later)
-3. The `[Meta]` tag must be present somewhere in your widget
+3. The `[Meta]` tag must be present somewhere in your widget  
    -It is advised to put this tag at the beginning of the file so it can easily be found by a human reader
 
 To give a few examples:
