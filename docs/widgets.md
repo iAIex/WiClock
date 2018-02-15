@@ -1,7 +1,7 @@
 # Widgets
 
 This is a guide on how to write your own widgets for WiClock.
-This guide is still a work in progress!
+*This guide is still a work in progress!*
 
 ## Tags
 ### What are they?
@@ -25,7 +25,7 @@ content="world"
 ```
 Since both tags are called "MyText" the tag with the `content="world"` would be the element that is displayed in the end, since it is further down in the widget.
 
-### The Meta Tags
+### The Meta Tag
 The Meta tag contains information on the widget (like size, name, etc). This tag is obligatory for every widget. As mentioned above we advise to put this tag at the very beginning of your widget file although it can be placed anywhere in your widget file.
 
 ## Attributes
@@ -38,3 +38,29 @@ Now you know what tags are but at the moment they don't really do anything. To n
 | y | defines the y position at which the tag should be rendered (top left corner) |
 | height | height when rendering the tag. Overflow will be clipped |
 | width | width when rendering the tag. Overflow will be clipped |
+
+Since other sets of attributes are specific for certain types we grouped them by type here:
+
+### Type=text
+As the name suggests this type can dispaly text (and numbers)
+
+| Attribute | Value/Example | Function |
+| :-------- | :-----: | :------- |
+| content | "Hello World" | The text you want to display |
+| font | res.defaultFont | The font used |
+| size | Integer | the text height in dots (not all font sizes are supported by all fonts) |
+| scroll | 1 or 0 | when set to 1 your text will scroll if it's to small for the box it's in |
+
+### Type=icon
+This type of tag can display icons stored in resource files
+
+| Attribute | Value/Example | Function |
+| :-------- | :-----: | :------- |
+| source | res.star | the resource file that should be displayed |
+| framerate | integer | framerate for animated icons, defaults to 0 if this attribute is omitted (static icon) |
+
+
+
+| Attribute | Value/Example | Function |
+| :-------- | :-----: | :------- |
+|  |  |  |
