@@ -1,7 +1,7 @@
 # Widgets
 
-This is a guide on how to write your own widgets for WiClock.
-*This guide is still a work in progress!*
+This is a guide on how to write your own widgets for WiClock.  
+**This guide is still a work in progress!**
 
 ## Tags
 ### What are they?
@@ -41,6 +41,7 @@ Now you know what tags are but at the moment they don't really do anything. To n
 
 Since other sets of attributes are specific for certain types we grouped them by type here:
 
+
 ### Type=text
 As the name suggests this type can dispaly text (and numbers)
 
@@ -51,16 +52,11 @@ As the name suggests this type can dispaly text (and numbers)
 | size | Integer | the text height in dots (not all font sizes are supported by all fonts) |
 | scroll | 1 or 0 | when set to 1 your text will scroll if it's to small for the box it's in |
 
+
 ### Type=icon
 This type of tag can display icons stored in resource files
 
 | Attribute | Value/Example | Function |
 | :-------- | :-----: | :------- |
 | source | res.star | the resource file that should be displayed |
-| framerate | integer | framerate for animated icons, defaults to 0 if this attribute is omitted (static icon) |
-
-
-
-| Attribute | Value/Example | Function |
-| :-------- | :-----: | :------- |
-|  |  |  |
+| framerate | Integer | framerate for animated icons, defaults to 0 if this attribute is omitted (static icon) |
