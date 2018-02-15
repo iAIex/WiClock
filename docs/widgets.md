@@ -41,7 +41,6 @@ Now you know what tags are but at the moment they don't really do anything. To n
 
 Since other sets of attributes are specific for certain types we grouped them by type here:
 
-
 ### Type=text
 As the name suggests this type can dispaly text (and numbers)
 
@@ -51,7 +50,6 @@ As the name suggests this type can dispaly text (and numbers)
 | font | res.defaultFont | The font used |
 | size | Integer | the text height in dots (not all font sizes are supported by all fonts) |
 | scroll | 1 or 0 | when set to 1 your text will scroll if it's to small for the box it's in |
-
 
 ### Type=icon
 This type of tag can display icons stored in resource files
