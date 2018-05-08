@@ -1,9 +1,11 @@
+# -*- coding: cp1252 -*-
 from copy import deepcopy
 import poplib
 import time
 import os
 from datetime import datetime
 from datetime import datetime
+import platform
 
 
 # Handle Single widget (parsing)
@@ -61,11 +63,11 @@ class Widget():
         self.lc0 = -1
         for self.i in xrange(len(self.lines)):
             if self.lines[self.i][0] == "[":
-                self.TAGS.append([[self.line_numbers[self.i], self.lines[self.i], 0, 0]])
+                self.TAGS.append([[self.line_numbers[self.i], self.lines[self.i], 1, 0]])
 
                 self.lc0 = self.lc0 + 1
             else:
-                self.TAGS[self.lc0].append([self.line_numbers[self.i], self.lines[self.i], 0, 0])
+                self.TAGS[self.lc0].append([self.line_numbers[self.i], self.lines[self.i], 1, 0])
 
         for self.i in xrange(len(self.TAGS)):
             if self.TAGS[self.i][0][1] == "[Variables]":
@@ -193,47 +195,50 @@ class Widget():
         for self. i in xrange(len(self.TAGS)):
             self.tag = []
             for self.ii in xrange(len(self.TAGS[self.i])):
+                if self.TAGS[self.i][self.ii][2] != 0:
+                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
 
-                self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-
-                self.cc = True
-                self.ccc = 0
-
-
-                while self.cc:
-                    self.cc = False
+                    self.cc = True
                     self.ccc = 0
 
-                    if len(self.temp0) > 1 and self.ii != 0:
-                        self.var_name = self.TAGS[self.i][self.ii][1][self.temp0[0]+1:self.temp0[1]]
-                        if len(self.var_name) > 0 and self.var_name[0] != "*" and self.var_name[-1] != "*" and self.var_name in self.NAMESPACE:
-                            self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp0[0]] + \
-                                                            self.NAMESPACE[self.var_name] + self.TAGS[self.i][self.ii][1][self.temp0[1]+1:]
-                            self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                            self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                        else:
-                            del self.temp0[0]
-                        self.ccc = self.ccc + 1
+                    if len(self.temp0) < 2 and len(self.temp1) < 2:
+                        self.TAGS[self.i][self.ii][2] = 0
+                    else:
 
-                    if len(self.temp1) > 1 and self.ii != 0:
-                        self.glob_name = self.TAGS[self.i][self.ii][1][self.temp1[0] + 1:self.temp1[1]]
+                        while self.cc:
+                            self.cc = False
+                            self.ccc = 0
 
-                        if len(self.glob_name) > 0 and self.glob_name[0] != "*" and self.glob_name[-1] != "*" and self.glob_name in Widget.GLOBAL_VARS:
+                            if len(self.temp0) > 1 and self.ii != 0:
+                                self.var_name = self.TAGS[self.i][self.ii][1][self.temp0[0]+1:self.temp0[1]]
+                                if len(self.var_name) > 0 and self.var_name[0] != "*" and self.var_name[-1] != "*" and self.var_name in self.NAMESPACE:
+                                    self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp0[0]] + \
+                                                                    self.NAMESPACE[self.var_name] + self.TAGS[self.i][self.ii][1][self.temp0[1]+1:]
+                                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                else:
+                                    del self.temp0[0]
+                                self.ccc = self.ccc + 1
 
-                            self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp1[0]] + \
-                                                            Widget.GLOBAL_VARS[self.glob_name] + self.TAGS[self.i][self.ii][
-                                                                                                1][self.temp1[1] + 1:]
+                            if len(self.temp1) > 1 and self.ii != 0:
+                                self.glob_name = self.TAGS[self.i][self.ii][1][self.temp1[0] + 1:self.temp1[1]]
 
-                            self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                            self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                        else:
-                            del self.temp1[0]
+                                if len(self.glob_name) > 0 and self.glob_name[0] != "*" and self.glob_name[-1] != "*" and self.glob_name in Widget.GLOBAL_VARS:
 
-                        self.ccc = self.ccc + 1
+                                    self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp1[0]] + \
+                                                                    Widget.GLOBAL_VARS[self.glob_name] + self.TAGS[self.i][self.ii][
+                                                                                                        1][self.temp1[1] + 1:]
 
-                    if self.ccc != 0:
-                        self.cc = True
+                                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                else:
+                                    del self.temp1[0]
+
+                                self.ccc = self.ccc + 1
+
+                            if self.ccc != 0:
+                                self.cc = True
 
     def update(self):
         self.NAMESPACE = deepcopy(self.NAMESPACE_ORIGINAL)
@@ -372,19 +377,15 @@ class WidgetInterpreter():
         self.width = width
         self.height = height
 
-        self.startx = 0
-        self.starty = 0
-        self.endx = 0
-        self.endy = 0
-        self.colour = [0, 0, 0]
-        self.con = 0
         self.ERROR = 0
 
         WidgetInterpreter.PIXEL_BUFFER = [[[0, 0, 0] for x in xrange(self.height)] for x1 in xrange(self.width)]
         WidgetInterpreter.PIXEL_BUFFER1 = [[[0, 0, 0] for x in xrange(self.height)] for x1 in xrange(self.width)]
         self.FONTS = Fonts()
+        self.SOURCES = Sources()
 
-    def interpret(self, parsed):
+    def interpret(self, parsed, widget_name):
+        self.widget_name = widget_name
         WidgetInterpreter.PIXEL_BUFFER = deepcopy(WidgetInterpreter.PIXEL_BUFFER1)
         self.parsed = parsed
         self.ERROR = 0
@@ -395,7 +396,6 @@ class WidgetInterpreter():
 
     def gfx_mgr(self, tag):
         self.tag = tag
-        self.reset()
 
         if "type" in self.tag:
             self.type = self.tag["type"]
@@ -407,35 +407,42 @@ class WidgetInterpreter():
                 self.gfx_point(self.tag)
             elif self.type == "text":
                 self.gfx_text(self.tag)
+            elif self.type == "rect":
+                self.gfx_rect(self.tag)
+            elif self.type == "source":
+                self.gfx_src(self.tag)
         else:
             print "Interpretation Error: type missing!"
 
     def gfx_none(self):
-        print ">> NONE"
         pass
 
-    def reset(self):
-        self.startx = 0
-        self.starty = 0
-        self.endx = 0
-        self.endy = 0
-        self.colour = [0, 0, 0]
-        self.con = 0
-        self.type = 0
-        self.radius = 0
-        self.filled = 0
-        self.x = 0
-        self.y = 0
+    def set_options(self, options, tag):
+        for self.t in tag.keys():
+            # insert here special options like text is a string, colour a list etc
+            if self.t == "colour":
+                self.col = tag[self.t].split(",")
+                options[self.t] == [int(self.col[0]), int(self.col[1]), int(self.col[2])]
+            elif self.t == "text":
+
+                self.options[self.t] = tag[self.t]
+            else:
+                try:
+                    self.options[self.t] = int(tag[self.t])
+                except ValueError:
+                    options[self.t] = tag[self.t]
+        return options
 
     def gfx_text(self, tag):
         self._tag = tag
+        self.options = {"startx":0, "starty":0,"colour":[1,1,1], "text":"", "font_name":"default5x3", }
+        self.options = self.set_options(self.options, self._tag)
         try:
-
-            self.startx = int(self._tag["startx"])
-            self.starty = int(self._tag["starty"])
-            self.colour = self._tag["colour"].split(",")
-            self.text = self._tag["text"]
-            self.font_name = self._tag["font"]
+            self.startx = self.options["startx"]
+            self.starty = self.options["starty"]
+            self.colour = self.options["colour"]
+            self.text = str(self.options["text"])
+            self.font_name = self.options["font_name"]
             self.x = self.startx
             self.y = self.starty
             self.c = 0
@@ -446,19 +453,19 @@ class WidgetInterpreter():
                     self.char = "SPACE"
                 self.px_data = self.FONTS.get_char_from_font(self.font_name, self.char)
                 self.y = self.starty
+
                 if self.x < len(self.PIXEL_BUFFER1):
                     for self.ii in xrange(len(self.px_data)):
                         self.x = self.startx + self.c
                         for self.iii in xrange(len(self.px_data[0])):
-                            if self.px_data[self.ii][self.iii] != "0":
-                                WidgetInterpreter.PIXEL_BUFFER[self.x][self.y] = [int(self.colour[0]), int(self.colour[1]), int(self.colour[2])]
+                            if self.px_data[self.ii][self.iii] != "0" and self.x < self.width and self.y < self.height:
+                                WidgetInterpreter.PIXEL_BUFFER[self.x][self.y] = self.colour
                             self.x = self.x + 1
                         self.y = self.y + 1
                     self.c = self.c + len(self.px_data[0]) + 1
-        except:
+        except IOError:
             self.ERROR = self.ERROR + 1
             pass
-
 
     def gfx_point(self, tag):
         try:
@@ -471,32 +478,83 @@ class WidgetInterpreter():
             self.ERROR = self.ERROR + 1
             pass
 
-
     def gfx_line(self, tag):
         self._tag = tag
+        self.options = {"startx": 0, "starty": 0, "colour": [1, 1, 1], "endx":0, "endy":0}
+        self.options = self.set_options(self.options, self._tag)
 
         try:
-            self.startx = int(self._tag["startx"])
-            self.starty = int(self._tag["starty"])
-            self.endx = int(self._tag["endx"])
-            self.endy = int(self._tag["endy"])
-            self.colour = self._tag["colour"].split(",")
+            self.startx = self.options["startx"]
+            self.starty = self.options["starty"]
+            self.endx = self.options["endx"]
+            self.endy = self.options["endy"]
+            self.colour = self.options["colour"]
+
             if self.startx != self.endx:
                 self.m = float(self.endy - self.starty) / float(self.endx - self.startx)
                 self.t = self.starty - self.m * self.startx
 
                 for self.x in xrange(self.startx, self.endx + 1):
-                    WidgetInterpreter.PIXEL_BUFFER[self.x][int(self.m * self.x + self.t)] = [int(self.colour[0]),
-                                                                                             int(self.colour[1]),
-                                                                                             int(self.colour[2])]
+                    WidgetInterpreter.PIXEL_BUFFER[self.x][int(self.m * self.x + self.t)] = self.colour
             elif self.startx == self.endx:
                 for self.y in xrange(self.starty, self.endy + 1):
-                    WidgetInterpreter.PIXEL_BUFFER[self.startx][int(self.y)] = [int(self.colour[0]),
-                                                                                int(self.colour[1]),
-                                                                                int(self.colour[2])]
+                    WidgetInterpreter.PIXEL_BUFFER[self.startx][int(self.y)] = self.colour
         except:
             self.ERROR = self.ERROR + 1
             pass
+
+    def gfx_rect(self, tag):
+        self._tag = tag
+        self.options = {"startx": 0, "starty": 0, "colour": [1, 1, 1], "endx": 0, "endy": 0, "filled":0}
+        self.options = self.set_options(self.options, self._tag)
+
+        try:
+            self.startx = self.options["startx"]
+            self.starty = self.options["starty"]
+            self.endx = self.options["endx"]
+            self.endy = self.options["endy"]
+            self.colour = self.options["colour"]
+            self.filled = self.options["filled"]
+            if self.filled == 1:
+                for self.x in xrange(self.startx, self.endx):
+                    for self.y in xrange(self.starty, self.endy):
+                        WidgetInterpreter.PIXEL_BUFFER[self.x][self.y] = self.colour
+            else:
+
+
+                for self.x in xrange(self.startx, self.endx):
+                    for self.y in xrange(self.starty, self.endy):
+
+                        if self.x == self.startx or self.x == self.endx-1 or self.y == self.starty or self.y == self.endy-1:
+                            WidgetInterpreter.PIXEL_BUFFER[self.x][self.y] = self.colour
+
+        except:
+            self.ERROR = self.ERROR + 1
+
+    def gfx_src(self, tag):
+        self._tag = tag
+        self.options = {"startx": 0, "starty": 0, "source":0, "colour":[1, 1, 1]}
+        self.options = self.set_options(self.options, self._tag)
+        self.startx = self.options["startx"]
+        self.starty = self.options["starty"]
+        self.source = self.options["source"]
+        self.colour = self.options["colour"]
+        print self.source, self.widget_name
+        if self.source != 0:
+            if self.source[0] == "*":
+                self.px_data = self.SOURCES.get_widget_source(self.source[1:], self.widget_name)
+            else:
+                self.px_data = self.SOURCES.get_source(self.source)
+            try:
+                for self.y in xrange(len(self.px_data)):
+                    for self.x in xrange(len(self.px_data[self.y])):
+                        self.xx = self.startx + self.x
+                        self.yy = self.starty + self.y
+                        if self.px_data[self.y][self.x] == 1:
+                            self.PIXEL_BUFFER[self.xx][self.yy] = self.colour
+
+            except:
+                self.ERROR = self.ERROR + 1
 
 
 # defines the global vars for Weidget.class
@@ -520,7 +578,24 @@ class Module():
         self.MODULE["date"] = str(int(time.asctime().split()[2]))
         self.MODULE["year"] = time.asctime().split()[4]
 
+        if platform.system() == "Linux":
+            self.gpio_handling()
+        else:
+
+            self.emulated_gpio_handling()
+
+
+
         return self.MODULE
+    def gpio_handling(self):
+        pass
+    def emulated_gpio_handling(self):
+        self.MODULE["GPIO0"] = 0
+        self.MODULE["GPIO1"] = 0
+        self.MODULE["GPIO2"] = 0
+        self.MODULE["GPIO3"] = 0
+        self.MODULE["GPIO4"] = 0
+
 
 
 # managing fonts ( Subclass of WidgetInterpreter)
@@ -531,7 +606,7 @@ class Fonts():
         # include custom font parser here ""
         for self.font_name in self.font_list:
             if ".font" in self.font_name:
-                self.FONTS[self.font_name.split(".font")[0]] = StandardFont(self.font_name)
+                self.FONTS[self.font_name.split(".font")[0]] = StandardFontParser(self.font_name)
             elif ".example" in self.font:
                 # alternetive parsers !
                 pass
@@ -548,7 +623,7 @@ class Fonts():
 
 
 # parsing fonts (subclass from Fonts)
-class StandardFont():
+class StandardFontParser():
     def __init__(self, name):
         try:
             self.font_name = name
@@ -560,7 +635,8 @@ class StandardFont():
 
             for self.line in self.lines:
                 self.line = self.line[:-1]
-                if self.line != "\n":
+
+                if self.line != "":
 
                     self.char = self.line.split()[0]
                     self.char_data = self.line.split()[1][1:-1].split(",")
@@ -577,6 +653,84 @@ class StandardFont():
         else:
             print ">> CHAR Error: from font \"%s\" char \"%s\" not defined and ERROR char missing!" % (self.font_name, to_get)
             return 0
+
+
+class Sources():
+    def __init__(self):
+        self.src_list = os.listdir("sources/")
+        self.SOURCES = {}
+        self.WIDGET_SOURCES = {}
+        # include custom Source parser here ""
+
+        for self.src_name in self.src_list:
+            if ".bsrc" in self.src_name:
+                self._src_name = self.src_name.split(".")[0]
+
+                self.SOURCES[self._src_name] = self.source_parser(self.src_name)
+            elif ".example" in self.src_name:
+                # alternetive parsers !
+                pass
+
+    def source_parser(self, src_name):
+        print src_name
+        self.path = "sources/" + src_name
+        self.w = open(self.path)
+        self.lines = self.w.readlines()
+
+        self.w.close()
+        self.PX_DATA = []
+
+        for self.line in self.lines:
+            print self.line
+            self.temp0 = find_strings(self.line, "(")
+            self.temp1 = find_strings(self.line, ")")
+            self. line = self.line[self.temp0[0]+1:self.temp1[0]]
+            print self.line
+            self.line = self.line.split(",")
+            for self.i in xrange(0, len(self.line)):
+                self.line[self.i] = int(self.line[self.i])
+            self.PX_DATA.append(self.line)
+        return self.PX_DATA
+
+    def get_source(self, src_name):
+        return self.SOURCES[src_name]
+
+    def get_widget_source(self, src_name, widget_name):
+        if widget_name not in self.WIDGET_SOURCES:
+            self.path = "widgets/" + widget_name + "/sources/" + src_name + ".bsrc"
+            self.w = open(self.path)
+            self.lines = self.w.readlines()
+            self.w.close()
+            self.PX_DATA = []
+
+            for self.line in self.lines:
+                self.line = self.line[1:-2]
+                self.line = self.line.split(",")
+                for self.i in xrange(0, len(self.line)):
+                    self.line[self.i] = int(self.line[self.i])
+                self.PX_DATA.append(self.line)
+            self.WIDGET_SOURCES[widget_name] = {}
+            self.WIDGET_SOURCES[widget_name][src_name] = self.PX_DATA
+            return self.PX_DATA
+        elif src_name not in self.WIDGET_SOURCES[widget_name]:
+            self.path = "widgets/" + widget_name + "/sources/" + src_name + ".bsrc"
+            self.w = open(self.path)
+            self.lines = self.w.readlines()
+            self.w.close()
+            self.PX_DATA = []
+
+            for self.line in self.lines:
+                self.line = self.line[1:-2]
+                self.line = self.line.split(",")
+                for self.i in xrange(0, len(self.line)):
+                    self.line[self.i] = int(self.line[self.i])
+                self.PX_DATA.append(self.line)
+            self.WIDGET_SOURCES[widget_name] = {}
+            self.WIDGET_SOURCES[widget_name][src_name] = self.PX_DATA
+            return self.PX_DATA
+
+        return self.WIDGET_SOURCES[widget_name][src_name]
+
 
 
 def find_strings(string, to_find):
