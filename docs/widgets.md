@@ -19,7 +19,8 @@ text=world
 
 ## [Variables]
 Important: in the variables tag are nor calculation supported!
-
+| Attribute | Function |
+| :-------- | :------- |
 | a=1 | set variable a to 1 |
 | b=2 | set variable b to 2 |
 | c=hallo | set variable c to "hallo" |
@@ -30,6 +31,9 @@ Important: in the variables tag are nor calculation supported!
 ## [Calculations]
 Here you can calculate with variables. Be careful, there is no string manipulation supported!
 Supported operations are: +, -, *, /, %, (, )
+
+| Attribute | Function |
+| :-------- | :------- |
 | a=1 | set a to 1|
 | b=#a#+2 | set b to "1+2" result in 3 |
 | c=(#b#+1)*2 | set c to "(1+2+1)*2" result in 8 |
@@ -53,8 +57,8 @@ As the name suggests this type can dispaly text (and numbers)
 | :-------- | :-----: | :------- |
 | text | Hello World | The text you want to display |
 | font | defaultFont | The font used |
-| startx | the x coordinate where the text starts
-[ starty | the y coordinate where the text starts
+| startx | the x coordinate where the text starts |
+| starty | the y coordinate where the text starts |
 
 Example:
 [text]
@@ -100,6 +104,7 @@ IfCondition2 ... IfCondition99 and the numbers in a row.
 Every condition has one TrueAction and/or one FalseAction.
 
 | logic operations | function | example |
+| :--------------- | :------- | :--------|
 | == | is equal to | (1==1) result in True |
 | != | is not equal to | (1!=1) result in False |
 | > | greater than | (1>0) result in True |
