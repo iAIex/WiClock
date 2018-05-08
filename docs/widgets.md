@@ -8,7 +8,7 @@ This is a guide on how to write your own widgets for WiClock.
 Each element displayed by your widget is represented by a tag. A tag looks like this: `[tagname_here]`. The name of the tag can be chosen freely within certain constraints/rules:
 
 To give a few examples:
-```
+
 [MyText]
 type=text
 text=hallo
