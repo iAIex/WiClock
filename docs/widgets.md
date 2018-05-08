@@ -5,21 +5,21 @@ This is a guide on how to write your own widgets for WiClock.
 
 ## Tags
 ### What are they?
-Each element displayed by your widget is represented by a tag. A tag looks like this: `[tagname_here]`. __
-The name of the tag can be chosen freely within certain constraints/rules:__
+Each element displayed by your widget is represented by a tag. A tag looks like this: `[tagname_here]`.
+The name of the tag can be chosen freely within certain constraints/rules:
 
-To give a few examples:__
+To give a few examples:
 
-[MyText]__
-type=text__
-text=hallo__
+[MyText]
+type=text
+text=hallo
 
-[MyText]__
-type=text__
-text=world__
+[MyText]
+type=text
+text=world
 
 ## [Variables]
-Important: in the variables tag are nor calculation supported!__
+Important: in the variables tag are nor calculation supported!
 
 | Attribute | Function |
 | :-------- | :------- |
@@ -31,8 +31,8 @@ Important: in the variables tag are nor calculation supported!__
 | str=#a# #c# | will result in "1 hallo" |
 
 ## [Calculations]
-Here you can calculate with variables. Be careful, there is no string manipulation supported!__
-Supported operations are: +, -, *, /, %, (, )__
+Here you can calculate with variables. Be careful, there is no string manipulation supported!  
+Supported operations are: +, -, *, /, %, (, )
 
 | Attribute | Function |
 | :-------- | :------- |
