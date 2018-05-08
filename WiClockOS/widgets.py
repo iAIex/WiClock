@@ -52,10 +52,13 @@ class WidgetMgr():
         self.WINTER = classes.WidgetInterpreter(self.width, self.height)
         classes.Widget.GLOBAL_VARS = deepcopy(self.MOD.get())
         for self.wname in widget_list:
+
             self.WIDGETS.append(classes.Widget(self.wname))
+
         WidgetMgr.WIDGET_NUMBERS = len(self.WIDGETS)
 
     def display_update(self):
+
         self.t = time.time()
         classes.Widget.set_module_vars(self.MOD.get())
         self.active = WidgetMgr.ACTIVE
@@ -63,12 +66,12 @@ class WidgetMgr():
         self.WINTER.interpret(self.WIDGETS[self.active].get(), self.widget_list[self.active])
         self.DRIVER.set(self.WINTER.PIXEL_BUFFER)
         self.DRIVER.draw()
+
         print ">> Parsing time: ", round(time.time() - self.t, 3), "Sleeping time: ", round(1 - (time.time() - self.t), 3)
-        #time.sleep(1 - (time.time() - self.t))
+        time.sleep(0.25 - (time.time() - self.t))
 
     @ staticmethod
     def ACTION(id):
-        print id
         # id = [what kind of action, action]
         if id[0] == "WIDGET":
             if id[1] == "LEFT":
@@ -86,8 +89,10 @@ class WidgetMgr():
 
 WiClockOS = WidgetMgr(["basic", "test", "test2"])
 while True:
+
     WiClockOS.display_update()
     print
+
 
 
 

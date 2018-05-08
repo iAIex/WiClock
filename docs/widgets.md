@@ -31,7 +31,7 @@ Important: in the variables tag are nor calculation supported!
 | str=#a# #c# | will result in "1 hallo" |
 
 ## [Calculations]
-Here you can calculate with variables. Be careful, there is no string manipulation supported!  
+Here you can calculate with variables. Be careful, there is no string manipulation supported!
 Supported operations are: +, -, *, /, %, (, )
 
 | Attribute | Function |

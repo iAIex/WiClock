@@ -23,10 +23,9 @@ class Widget():
         self.PARSED = []
         self.namespace = {}
 
-        self.d = open("widgets/"+self.name+"/"+self.name+".ini")
-        self.lines = self.d.readlines()
+
+        self.lines = custom_readlines("widgets/"+self.name+"/"+self.name+".ini")
         self.ORIGINAL = deepcopy(self.lines)
-        self.d.close()
 
         self.temp0 = 0
         self.temp1 = 0
@@ -39,26 +38,22 @@ class Widget():
         self.lc2 = 0
 
         self.prepars()
+
         self.pars_variable()
+
         self.pars_tags()
 
-        #print self.NAMESPACE
-        #print self.TAGS
-        #print self.NAMESPACE_FUSES
 
     def prepars(self):
         # delete empty lines, comments, line numbers for debugging and end-of-line character
         self.i = 0
         self.line_numbers = [self.x for self.x in xrange(1, len(self.lines)+1)]
-        while self.i != len(self.lines):
-            if self.lines[self.i][0] == "\n" or self.lines[self.i][0] == "#":
+        while self.i < len(self.lines):
+            if self.lines[self.i] == "" or self.lines[self.i][0] == "#":
                 del self.lines[self.i]
                 del self.line_numbers[self.i]
             else:
-                if self.lines[self.i][-1] == "\n":
-                    self.lines[self.i] = self.lines[self.i][0:-1]
                 self.i = self.i + 1
-
         # seperate [TAGS]: be careful, first index in tag is tagname, second is line number, third is the LINE
         self.lc0 = -1
         for self.i in xrange(len(self.lines)):
@@ -396,8 +391,8 @@ class WidgetInterpreter():
 
     def gfx_mgr(self, tag):
         self.tag = tag
-
         if "type" in self.tag:
+
             self.type = self.tag["type"]
             if self.type == "none":
                 self.gfx_none()
@@ -539,7 +534,7 @@ class WidgetInterpreter():
         self.starty = self.options["starty"]
         self.source = self.options["source"]
         self.colour = self.options["colour"]
-        print self.source, self.widget_name
+
         if self.source != 0:
             if self.source[0] == "*":
                 self.px_data = self.SOURCES.get_widget_source(self.source[1:], self.widget_name)
@@ -629,13 +624,9 @@ class StandardFontParser():
             self.font_name = name
             self.CHARS = {}
             self.path = "fonts/" + self.font_name
-            self.w = open(self.path)
-            self.lines = self.w.readlines()
-            self.w.close()
+            self.lines = custom_readlines(self.path)
 
             for self.line in self.lines:
-                self.line = self.line[:-1]
-
                 if self.line != "":
 
                     self.char = self.line.split()[0]
@@ -672,20 +663,18 @@ class Sources():
                 pass
 
     def source_parser(self, src_name):
-        print src_name
-        self.path = "sources/" + src_name
-        self.w = open(self.path)
-        self.lines = self.w.readlines()
 
-        self.w.close()
+        self.path = "sources/" + src_name
+        self.lines = custom_readlines(self.path)
+
         self.PX_DATA = []
 
         for self.line in self.lines:
-            print self.line
+
             self.temp0 = find_strings(self.line, "(")
             self.temp1 = find_strings(self.line, ")")
             self. line = self.line[self.temp0[0]+1:self.temp1[0]]
-            print self.line
+
             self.line = self.line.split(",")
             for self.i in xrange(0, len(self.line)):
                 self.line[self.i] = int(self.line[self.i])
@@ -698,13 +687,11 @@ class Sources():
     def get_widget_source(self, src_name, widget_name):
         if widget_name not in self.WIDGET_SOURCES:
             self.path = "widgets/" + widget_name + "/sources/" + src_name + ".bsrc"
-            self.w = open(self.path)
-            self.lines = self.w.readlines()
-            self.w.close()
+            self.lines = custom_readlines(self.path)
             self.PX_DATA = []
 
             for self.line in self.lines:
-                self.line = self.line[1:-2]
+                self.line = self.line[1:-1]
                 self.line = self.line.split(",")
                 for self.i in xrange(0, len(self.line)):
                     self.line[self.i] = int(self.line[self.i])
@@ -714,9 +701,7 @@ class Sources():
             return self.PX_DATA
         elif src_name not in self.WIDGET_SOURCES[widget_name]:
             self.path = "widgets/" + widget_name + "/sources/" + src_name + ".bsrc"
-            self.w = open(self.path)
-            self.lines = self.w.readlines()
-            self.w.close()
+            self.lines = custom_readlines(self.path)
             self.PX_DATA = []
 
             for self.line in self.lines:
@@ -735,4 +720,20 @@ class Sources():
 
 def find_strings(string, to_find):
     return [i for i in range(len(string)) if string.startswith(to_find, i)]
+
+def custom_readlines(path):
+    w = open(path)
+    readlines = w.readlines()
+    lines = []
+    for line in readlines:
+        if "\n" in line and "\r" in line:
+            lines.append(line[0:-2])
+        elif "\n" in line or "\r" in line:
+            lines.append(line[0:-1])
+        else:
+            lines.append(line)
+    w.close()
+
+    return lines
+
 
