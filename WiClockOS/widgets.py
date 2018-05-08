@@ -15,7 +15,6 @@ class WidgetMgr():
     ACTIVE = 0
     WIDGET_NUMBERS = 0
     def __init__(self, widget_list):
-        # TEST
         self.widget_list = widget_list
         self.WIDGETS = []
         self.active = 0 # which widgetd is active
