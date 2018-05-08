@@ -81,7 +81,7 @@ source in the widget folder, otherwise resource file from /sources will be used.
 | source | star | the resource file that should be displayed |
 | framerate | Integer | framerate for animated icons, defaults to 0 if this attribute is omitted (static icon) |
 | startx | the x coordinate where the source starts |
-[ starty | the y coordinate where the source starts |
+| starty | the y coordinate where the source starts |
 
 Example:
 [source]
