@@ -15,7 +15,7 @@ To-Do:
 - module support
 - static values
 - milliseconds as variable
-- more options using IfCindition
+- more options using IfCondition
 - many bugfixes, tests and much more
 
 
