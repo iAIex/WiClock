@@ -10,11 +10,11 @@ class driver(object):
     # PIXEL_BUFFER STORES RGB !
     PIXEL_BUFFER = []
 
-    def __init__(self, WidgetMgr):
+    def __init__(self, WidgetMgr, width, height):
         self.WidgetMgr = WidgetMgr
         self.cfg_data = read_cfg("driver/simulator/config.cfg")
-        self.px_x = self.cfg_data["width"]
-        self.px_y = self.cfg_data["height"]
+        self.px_x = width
+        self.px_y = height
         self.px_size = self.cfg_data["px_size"]   # regulates the pixel size
         self.RGB = self.cfg_data["rgb"]        # turns RGB mode ON/OFF
         self.RECT = self.cfg_data["rect"]       # switch between rectengle or cyrcle

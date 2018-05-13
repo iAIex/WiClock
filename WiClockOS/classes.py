@@ -13,7 +13,9 @@ class Widget():
     MODULE_VARS = {}
     GLOBAL_VARS = {}
 
-    def __init__(self, name):
+    def __init__(self, name, ADDONS, MODULES):
+        self.ADDONS = ADDONS
+        self.MODULES = MODULES
         self.name = name
         self.NAMESPACE = {}
         self.NAMESPACE_ORIGINAL = {}
@@ -23,80 +25,67 @@ class Widget():
         self.PARSED = []
         self.namespace = {}
 
+        lines = custom_readlines("widgets/" + self.name + "/" + self.name + ".ini")
+        self.ORIGINAL = deepcopy(lines)
 
-        self.lines = custom_readlines("widgets/"+self.name+"/"+self.name+".ini")
-        self.ORIGINAL = deepcopy(self.lines)
-
-        self.temp0 = 0
-        self.temp1 = 0
-        self.temp2 = 0
-        self.temp3 = 0
-
-        # line counters:
-        self.lc0 = 0
-        self.lc1 = 0
-        self.lc2 = 0
-
-        self.prepars()
-
+        self.prepars(lines)
         self.pars_variable()
-
         self.pars_tags()
 
-
-    def prepars(self):
+    # reworked
+    def prepars(self, lines):
         # delete empty lines, comments, line numbers for debugging and end-of-line character
-        self.i = 0
-        self.line_numbers = [self.x for self.x in xrange(1, len(self.lines)+1)]
-        while self.i < len(self.lines):
-            if self.lines[self.i] == "" or self.lines[self.i][0] == "#":
-                del self.lines[self.i]
-                del self.line_numbers[self.i]
+        i = 0
+        line_numbers = [self.x for self.x in xrange(1, len(lines) + 1)]
+        while i < len(lines):
+            if lines[i] == "" or lines[i][0] == "#":
+                del lines[i]
+                del line_numbers[i]
             else:
-                self.i = self.i + 1
+                i = i + 1
         # seperate [TAGS]: be careful, first index in tag is tagname, second is line number, third is the LINE
-        self.lc0 = -1
-        for self.i in xrange(len(self.lines)):
-            if self.lines[self.i][0] == "[":
-                self.TAGS.append([[self.line_numbers[self.i], self.lines[self.i], 1, 0]])
+        lc0 = -1
+        for i in xrange(len(lines)):
+            if lines[i][0] == "[":
+                self.TAGS.append([[line_numbers[i], lines[i], 1, 0]])
 
-                self.lc0 = self.lc0 + 1
+                lc0 = lc0 + 1
             else:
-                self.TAGS[self.lc0].append([self.line_numbers[self.i], self.lines[self.i], 1, 0])
+                self.TAGS[lc0].append([line_numbers[i], lines[i], 1, 0])
 
-        for self.i in xrange(len(self.TAGS)):
-            if self.TAGS[self.i][0][1] == "[Variables]":
-                for self.ii in xrange(1,  len(self.TAGS[self.i])):
-                    self.var_name = self.TAGS[self.i][self.ii][1].split("=")[0]
-                    self.var_content = ""
-                    self.line = self.TAGS[self.i][self.ii][0]
-                    for self.iii in xrange(1, len(self.TAGS[self.i][self.ii][1].split("="))):
-                        self.var_content = self.var_content + self.TAGS[self.i][self.ii][1].split("=")[self.iii]
-                        if self.iii+1 < len(self.TAGS[self.i][self.ii][1].split("=")):
-                            self.var_content = self.var_content + "="
-                    self.NAMESPACE[self.var_name] = self.var_content
-                    self.NAMESPACE_FUSES[self.var_name] = [self.line, 0, 0, 0, 0]
+        for i in xrange(len(self.TAGS)):
+            if self.TAGS[i][0][1] == "[Variables]":
+                for ii in xrange(1, len(self.TAGS[self.i])):
+                    var_name = self.TAGS[i][ii][1].split("=")[0]
+                    var_content = ""
+                    line = self.TAGS[i][ii][0]
+                    for iii in xrange(1, len(self.TAGS[i][ii][1].split("="))):
+                        var_content = var_content + self.TAGS[i][ii][1].split("=")[iii]
+                        if iii + 1 < len(self.TAGS[i][ii][1].split("=")):
+                            var_content = var_content + "="
+                    self.NAMESPACE[var_name] = var_content
+                    self.NAMESPACE_FUSES[var_name] = [line, 0, 0, 0, 0]
 
-            if self.TAGS[self.i][0][1] == "[Calculations]":
-                for self.ii in xrange(1, len(self.TAGS[self.i])):
-                    self.var_name = self.TAGS[self.i][self.ii][1].split("=")[0]
-                    self.var_content = ""
-                    self.line = self.TAGS[self.i][self.ii][0]
-                    for self.iii in xrange(1, len(self.TAGS[self.i][self.ii][1].split("="))):
-                        self.var_content = self.var_content + self.TAGS[self.i][self.ii][1].split("=")[self.iii]
-                        if self.iii + 1 < len(self.TAGS[self.i][self.ii][1].split("=")):
-                            self.var_content = self.var_content + "="
-                    self.NAMESPACE[self.var_name] = self.var_content
-                    self.NAMESPACE_FUSES[self.var_name] = [self.line, 1, 0, 0, 0]
-        self.lc0 = 0
-        for self.i in xrange(len(self.TAGS)):
-            if self.TAGS[self.i - self.lc0][0][1] == "[Variables]":
-                del self.TAGS[self.i - self.lc0]
-                self.lc0 = self.lc0 + 1
+            if self.TAGS[i][0][1] == "[Calculations]":
+                for ii in xrange(1, len(self.TAGS[i])):
+                    var_name = self.TAGS[i][ii][1].split("=")[0]
+                    var_content = ""
+                    line = self.TAGS[i][ii][0]
+                    for iii in xrange(1, len(self.TAGS[i][ii][1].split("="))):
+                        var_content = var_content + self.TAGS[i][ii][1].split("=")[iii]
+                        if iii + 1 < len(self.TAGS[i][ii][1].split("=")):
+                            var_content = var_content + "="
+                    self.NAMESPACE[var_name] = var_content
+                    self.NAMESPACE_FUSES[var_name] = [line, 1, 0, 0, 0]
+        lc0 = 0
+        for i in xrange(len(self.TAGS)):
+            if self.TAGS[i - lc0][0][1] == "[Variables]":
+                del self.TAGS[i - lc0]
+                lc0 = lc0 + 1
 
-            if self.TAGS[self.i - self.lc0][0][1] == "[Calculations]":
-                del self.TAGS[self.i - self.lc0]
-                self.lc0 = self.lc0 + 1
+            if self.TAGS[i - lc0][0][1] == "[Calculations]":
+                del self.TAGS[i - lc0]
+                lc0 = lc0 + 1
 
         self.NAMESPACE_ORIGINAL = deepcopy(self.NAMESPACE)  # backup, dont delete !!
         self.TAGS_ORIGINAL = deepcopy(self.TAGS)
@@ -134,30 +123,86 @@ class Widget():
                         self.cc = False
 
     def pars_module(self, key):
+        self.standard = "basic"
         self.key = key
         self.cc = True
         self.temp0 = find_strings(self.NAMESPACE[self.key], "$")
-
         while self.cc:
             # Value stuff
 
             self.cc = False
             if len(self.temp0) > 1:
 
-                self.glob_name = self.NAMESPACE[self.key][self.temp0[0] + 1:self.temp0[1]]
+                self.module = self.NAMESPACE[self.key][self.temp0[0] + 1:self.temp0[1]].split(".")
+                if len(self.module) == 1:
+                    self.module_name = self.standard
+                    self.cmd = self.module[0]
+
+                else:
+                    self.module_name = self.module[0]
+                    self.cmd = self.module[1]
 
                 try:
-                    if self.glob_name[0] != "*" and self.glob_name[-1] != "*":
-                        Widget.GLOBAL_VARS[self.glob_name]
-                    else:
-                        self.glob_name = "##"
-                except:
-                    self.glob_name = "##"
+                    if self.module_name[0] != "*" and self.module_name[-1] != "*":
 
-                if self.glob_name != "##":
-                    self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + Widget.GLOBAL_VARS[self.glob_name] + self.NAMESPACE[self.key][self.temp0[1] + 1:]
+                        self.MODULES[self.module_name]
+
+                    else:
+                        self.module_name = "$$"
+                except:
+                    self.module_name = "$$"
+
+                if self.module_name != "$$":
+                    self.ret = str(self.MODULES[self.module_name].get(self.cmd))
+                    if self.ret == "None":
+                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
+                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
+                    else:
+                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
+                                                   self.ret + self.NAMESPACE[self.key][self.temp0[1] + 1:]
                     self.cc = True
                     self.temp0 = find_strings(self.NAMESPACE[self.key], "$")
+
+                else:
+                    del self.temp0[0]
+                    self.cc = True
+                    if len(self.temp0) == 0:
+                        self.cc = False
+
+    def pars_addon(self, key):
+        self.key = key
+        self.cc = True
+        self.temp0 = find_strings(self.NAMESPACE[self.key], "&")
+        while self.cc:
+            # Value stuff
+
+            self.cc = False
+            if len(self.temp0) > 1:
+
+                self.addon = self.NAMESPACE[self.key][self.temp0[0] + 1:self.temp0[1]].split(".")
+                self.addon_name = self.addon[0]
+                self.cmd = self.addon[1]
+
+                try:
+                    if self.addon_name[0] != "*" and self.addon_name[-1] != "*":
+                        self.ADDONS[self.addon_name]
+
+                    else:
+                        self.addon_name = "&&"
+                except:
+                    self.addon_name = "&&"
+
+                if self.addon_name != "&&":
+                    self.ret = str(self.ADDONS[self.addon_name].get(self.cmd))
+                    if self.ret == "None":
+                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
+                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
+                    else:
+                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
+                                                   str(self.ADDONS[self.addon_name].get(self.cmd)) + \
+                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
+                    self.cc = True
+                    self.temp0 = find_strings(self.NAMESPACE[self.key], "&")
 
                 else:
                     del self.temp0[0]
@@ -173,7 +218,6 @@ class Widget():
                 self.prepars_variable(self._key)
                 self.pars_module(self._key)
                 self.formel = "value=" + self.NAMESPACE[self._key]
-
                 try:
                     exec self.formel in self.namespace
                     self.NAMESPACE[self._key] = str(self.namespace["value"])
@@ -184,20 +228,22 @@ class Widget():
             if self.NAMESPACE_FUSES[self._key][1] == 0:
                 self.prepars_variable(self._key)
                 self.pars_module(self._key)
+                self.pars_addon(self._key)
 
     def pars_tags(self):
         self.PARSED = []
-        for self. i in xrange(len(self.TAGS)):
+        for self.i in xrange(len(self.TAGS)):
             self.tag = []
             for self.ii in xrange(len(self.TAGS[self.i])):
                 if self.TAGS[self.i][self.ii][2] != 0:
                     self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
                     self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                    self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
 
                     self.cc = True
                     self.ccc = 0
 
-                    if len(self.temp0) < 2 and len(self.temp1) < 2:
+                    if len(self.temp0) < 2 and len(self.temp1) < 2 and len(self.temp2) < 2:
                         self.TAGS[self.i][self.ii][2] = 0
                     else:
 
@@ -205,31 +251,94 @@ class Widget():
                             self.cc = False
                             self.ccc = 0
 
+                            # VARIABLE PARSING
                             if len(self.temp0) > 1 and self.ii != 0:
+
                                 self.var_name = self.TAGS[self.i][self.ii][1][self.temp0[0]+1:self.temp0[1]]
                                 if len(self.var_name) > 0 and self.var_name[0] != "*" and self.var_name[-1] != "*" and self.var_name in self.NAMESPACE:
+
                                     self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp0[0]] + \
                                                                     self.NAMESPACE[self.var_name] + self.TAGS[self.i][self.ii][1][self.temp0[1]+1:]
+
                                     self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
                                     self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                    self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
                                 else:
                                     del self.temp0[0]
                                 self.ccc = self.ccc + 1
 
+                                # MODULE PARSING
                             if len(self.temp1) > 1 and self.ii != 0:
-                                self.glob_name = self.TAGS[self.i][self.ii][1][self.temp1[0] + 1:self.temp1[1]]
+                                self.module = self.TAGS[self.i][self.ii][1][self.temp1[0] + 1:self.temp1[1]].split(
+                                    ".")
+                                if len(self.module) == 1:
+                                    self.cmd = self.module[0]
+                                    self.module_name = self.standard
+                                else:
+                                    self.module_name = self.module[0]
+                                    self.cmd = self.module[1]
 
-                                if len(self.glob_name) > 0 and self.glob_name[0] != "*" and self.glob_name[-1] != "*" and self.glob_name in Widget.GLOBAL_VARS:
+                                if self.module_name in self.MODULES:
 
-                                    self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp1[0]] + \
-                                                                    Widget.GLOBAL_VARS[self.glob_name] + self.TAGS[self.i][self.ii][
-                                                                                                        1][self.temp1[1] + 1:]
+                                    self.ret = self.MODULES[self.module_name].get(self.cmd)
 
-                                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                    if self.ret != None:
+                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][
+                                                                        :self.temp1[0]] + \
+                                                                        str(self.ret) + \
+                                                                        self.TAGS[self.i][self.ii][
+                                                                            1][self.temp1[1] + 1:]
+
+                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
+                                    else:
+                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][
+                                                                        :self.temp1[0]] + \
+                                                                        self.TAGS[self.i][self.ii][
+                                                                            1][self.temp1[1] + 1:]
+
+                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
+
+
                                 else:
                                     del self.temp1[0]
+                                self.ccc = self.ccc + 1
 
+                            # ADDON PARSING
+                            if len(self.temp2) > 1 and self.ii != 0:
+                                self.addon = self.TAGS[self.i][self.ii][1][self.temp2[0] + 1:self.temp2[1]].split(".")
+                                if self.addon[0] in self.ADDONS:
+                                    self.cmd = ""
+                                    for self.a in self.addon[1:]:
+                                        self.cmd = self.cmd + self.a + "."
+                                    self.cmd = self.cmd[:-1]
+                                    self.ret = self.ADDONS[self.addon[0]].get(self.cmd)
+                                    if self.ret != None:
+                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp2[0]] + \
+                                                                        str(self.ret) + \
+                                                                        self.TAGS[self.i][self.ii][
+                                                                            1][self.temp2[1] + 1:]
+
+                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
+
+                                    else:
+
+                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp2[0]] + \
+                                                                        self.TAGS[self.i][self.ii][
+                                                                            1][self.temp2[1] + 1:]
+
+                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
+                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
+                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
+
+
+                                else:
+                                    del self.temp2[0]
                                 self.ccc = self.ccc + 1
 
                             if self.ccc != 0:
@@ -259,6 +368,7 @@ class Widget():
             self.PARSED.append(self.tag)
 
         self.conditions()
+        self.addon_do()
         return self.PARSED
 
     def conditions(self):
@@ -330,6 +440,16 @@ class Widget():
                 self.true_string = "IfTrueAction" + str(self.con_count)
                 self.false_string = "IfFalseAction" + str(self.con_count)
 
+    def addon_do(self):
+        self.c = 0
+        for self.i in xrange(len(self.PARSED)):
+            if "type" in self.PARSED[self.i] and self.PARSED[self.i]["type"] == "addon" and "command" in self.PARSED[
+                self.i] and "name" in self.PARSED[self.i]:
+                if self.PARSED[self.i]["name"] in self.ADDONS:
+                    self.ADDONS[self.PARSED[self.i]["name"]].do(self.PARSED[self.i]["command"])
+                del self.PARSED[self.i]
+                self.i = self.i - 1
+
     @staticmethod
     def set_module_vars(mod_vars):
         Widget.GLOBAL_VARS = deepcopy(mod_vars)
@@ -386,8 +506,8 @@ class WidgetInterpreter():
         self.ERROR = 0
         for self.i in xrange(len(self.parsed)):
             self.gfx_mgr(self.parsed[self.i])
-
-        print ">> Interpretion ERRORS: ", self.ERROR
+        # print self.PIXEL_BUFFER
+        # print ">> Interpretion ERRORS: ", self.ERROR
 
     def gfx_mgr(self, tag):
         self.tag = tag
@@ -551,37 +671,6 @@ class WidgetInterpreter():
             except:
                 self.ERROR = self.ERROR + 1
 
-
-# defines the global vars for Weidget.class
-class Module():
-    def __init__(self):
-        self.MODULE = {}
-        self.dt = datetime.now()
-        self.dt.microsecond
-
-    def get(self):
-        # time variables
-        self.MODULE["secs"] = time.asctime().split()[3].split(":")[2]
-        self.MODULE["sec"] = str(int(time.asctime().split()[3].split(":")[2]))
-        self.MODULE["hrs"] = time.asctime().split()[3].split(":")[0]
-        self.MODULE["hr"] = str(int(time.asctime().split()[3].split(":")[0]))
-        self.MODULE["min"] = time.asctime().split()[3].split(":")[1]
-        self.MODULE["mins"] = str(time.asctime().split()[3].split(":")[1])
-        self.MODULE["day"] = time.asctime().split()[0]
-        self.MODULE["mon"] = time.asctime().split()[1]
-        self.MODULE["dates"] = time.asctime().split()[2]
-        self.MODULE["date"] = str(int(time.asctime().split()[2]))
-        self.MODULE["year"] = time.asctime().split()[4]
-
-        if platform.system() == "Linux":
-            self.gpio_handling()
-        else:
-
-            self.emulated_gpio_handling()
-
-
-
-        return self.MODULE
     def gpio_handling(self):
         pass
     def emulated_gpio_handling(self):
@@ -715,8 +804,6 @@ class Sources():
             return self.PX_DATA
 
         return self.WIDGET_SOURCES[widget_name][src_name]
-
-
 
 def find_strings(string, to_find):
     return [i for i in range(len(string)) if string.startswith(to_find, i)]
