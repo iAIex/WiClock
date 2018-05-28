@@ -6,491 +6,661 @@ import os
 from datetime import datetime
 from datetime import datetime
 import platform
+import copy
+import random
+import time
 
+VARIABLE_STRING = "#"
+MODULE_STRING = "$"
+
+class Run():
+    def __init__(self):
+        pass
 
 # Handle Single widget (parsing)
-class Widget():
-    MODULE_VARS = {}
-    GLOBAL_VARS = {}
+class Tag():
+    def __init__(self, tag_name):
+        self.tag_original = [] # original tag, stores lines for information [[line_number, line], ... ]
+        self.tag_name = tag_name # tagname (string)
+        self.CONDITIONS = {} # stores all condition of the tag
+        self.LINES = []
+        self.USED_MOD_VARS ={}
+    def pars(self, VARIABLES):
+        self.VARIABLES = VARIABLES
+        self.SharedInformation = self.VARIABLES.SharedInformation
 
-    def __init__(self, name, ADDONS, MODULES):
-        self.ADDONS = ADDONS
-        self.MODULES = MODULES
-        self.name = name
-        self.NAMESPACE = {}
-        self.NAMESPACE_ORIGINAL = {}
-        self.NAMESPACE_FUSES = {}
-        self.TAGS = []
-        self.ORIGINAL = []
-        self.PARSED = []
-        self.namespace = {}
+        # bring LINES to the format
+        for LINE in self.tag_original:
+            self.LINES.append([LINE[0], seperate_line(LINE[1])[0], seperate_line(LINE[1])[1], 0, [], 0])
 
-        lines = custom_readlines("widgets/" + self.name + "/" + self.name + ".ini")
-        self.ORIGINAL = deepcopy(lines)
 
-        self.prepars(lines)
-        self.pars_variable()
-        self.pars_tags()
+        for idx in xrange(len(self.LINES)):
+            LINE = self.LINES[idx]
+            tmp = find_strings(LINE[2], VARIABLE_STRING)
+            tmp1 = find_strings(LINE[2], MODULE_STRING)
+            cc = True
+            i = 0
+            ii = 0
+            while cc:
+                v_number = 0
+                m_number = 0
+                if len(tmp) <= 1 and len(tmp1) >= 2:
+                    m_number = 0
+                    v_number = 99
+                elif len(tmp1) <= 1 and len(tmp) >= 2:
+                    m_number = 99
+                    v_number = 0
+                elif len(tmp) <= 1 and len(tmp1) <= 1:
+                    m_number = 0
+                    v_number = 0
+                else:
 
-    # reworked
-    def prepars(self, lines):
-        # delete empty lines, comments, line numbers for debugging and end-of-line character
+                    if tmp[0] > tmp1[0]:
+                        v_number = 99
+                        m_number = 0
+                    elif tmp1[0] > tmp[0]:
+                        v_number = 0
+                        m_number = 99
+                    else:
+                        v_number = 0
+                        m_number = 0
+
+
+                if v_number < m_number and i < len(tmp)-1:
+
+                    var_name = LINE[2][tmp[i] + 1:tmp[i + 1]]
+                    if var_name in self.VARIABLES.NAMESPACE:
+
+                        if self.VARIABLES.NAMESPACE[var_name][2] == 0:
+                            LINE[2] = LINE[2][:tmp[i]] + self.VARIABLES.NAMESPACE[var_name][1] + LINE[2][tmp[i+1]+1:]
+
+                        if self.VARIABLES.NAMESPACE[var_name][2] == 1:
+                            LINE[2] = LINE[2][:tmp[i]] + "{}" + LINE[2][tmp[i + 1] + 1:]
+                            LINE[4].append([0, var_name])
+                        tmp = find_strings(LINE[2], VARIABLE_STRING)
+                        tmp1 = find_strings(LINE[2], MODULE_STRING)
+                        i = -1
+                    i = i + 1
+
+                elif m_number < v_number and ii < len(tmp1)-1:
+                    mod = LINE[2][tmp1[ii] + 1:tmp1[ii + 1]].split(".")
+                    if len(mod) == 2:
+                        mod_name = mod[0]
+                        mod_var = mod[1]
+
+                        if mod_name in self.SharedInformation.MOD_VARIABLES:
+                            if mod_var in self.SharedInformation.MOD_VARIABLES[mod_name]:
+                                LINE[2] = LINE[2][:tmp1[ii]] + "{}" + LINE[2][tmp1[ii + 1] + 1:]
+                                LINE[4].append([mod_name, mod_var])
+                                tmp = find_strings(LINE[2], VARIABLE_STRING)
+                                tmp1 = find_strings(LINE[2], MODULE_STRING)
+                                if mod_name in self.USED_MOD_VARS:
+                                    self.USED_MOD_VARS[mod_name][mod_var] = 0
+                                else:
+                                    self.USED_MOD_VARS[mod_name] = {}
+                                    self.USED_MOD_VARS[mod_name][mod_var] = 0
+
+
+                                ii = -1
+                    ii = ii + 1
+
+
+
+                else:
+                    cc = False
+
+
+                self.LINES[idx] = copy.deepcopy(LINE)
+        del_list = []
+        for idx in xrange(len(self.LINES)):
+            LINE = self.LINES[idx]
+            if len(LINE[4]) != 0:
+                LINE[3] = 1
+
+
+            self.LINES[idx] = copy.deepcopy(LINE)
+            # Condition Handling
+
+            if "IfCondition" in LINE[1] or "IfTrueAction" in LINE[1] or "IfFalseAction" in LINE[1]:
+
+                if "IfCondition" in LINE[1]:
+                    C_ID = LINE[1][len("IfCondition"):]
+                    if C_ID == "":
+                        C_ID = "0"
+
+                    if C_ID in self.CONDITIONS:
+                        self.CONDITIONS[C_ID].condition_original = copy.deepcopy(LINE)
+                    else:
+                        self.CONDITIONS[C_ID] = Condition(self.VARIABLES)
+                        self.CONDITIONS[C_ID].condition_original = copy.deepcopy(LINE)
+                        self.CONDITIONS[C_ID].tag_name = self.tag_name
+                    del_list.append(idx)
+
+
+                elif "IfTrueAction" in LINE[1]:
+                    C_ID = LINE[1][len("IfTrueAction"):]
+                    if C_ID == "":
+                        C_ID = "0"
+
+                    if C_ID in self.CONDITIONS:
+                        self.CONDITIONS[C_ID].trueaction_original = copy.deepcopy(LINE)
+                    else:
+                        self.CONDITIONS[C_ID] = Condition(self.VARIABLES)
+                        self.CONDITIONS[C_ID].trueaction_original = copy.deepcopy(LINE)
+                    del_list.append(idx)
+                elif "IfFalseAction" in LINE[1]:
+                    C_ID = LINE[1][len("IfFalseAction"):]
+                    if C_ID == "":
+                        C_ID = "0"
+
+                    if C_ID in self.CONDITIONS:
+                        self.CONDITIONS[C_ID].falseaction_original = copy.deepcopy(LINE)
+                    else:
+                        self.CONDITIONS[C_ID] = Condition(self.VARIABLES)
+                        self.CONDITIONS[C_ID].falseaction_original = copy.deepcopy(LINE)
+                    del_list.append(idx)
+
         i = 0
-        line_numbers = [self.x for self.x in xrange(1, len(lines) + 1)]
-        while i < len(lines):
-            if lines[i] == "" or lines[i][0] == "#":
-                del lines[i]
-                del line_numbers[i]
+        for d in del_list:
+            del self.LINES[d-i]
+            i = i + 1
+
+        self.pars_conditions()
+
+    def pars_conditions(self):
+        for key in self.CONDITIONS.keys():
+
+            self.CONDITIONS[key].pars()
+            if self.CONDITIONS[key].type == 0:
+                del self.CONDITIONS[key]
+
+    def condition_update(self, TAGS, NAME_LIST):
+        for CON in self.CONDITIONS:
+            TAGS = self.CONDITIONS[CON].test_condition(TAGS, self.tag_name, NAME_LIST)
+            return TAGS
+
+
+class Condition():
+    def __init__(self, Variables):
+        self.Variables = Variables
+        self.condition_original = []
+        self.trueaction_original = []
+        self.falseaction_original = []
+
+        self.type = 1
+        self.tag_name = 0
+        self.CONDITION = []
+        self.TRUEACTION =[]
+        self.FALSEACTION = []
+
+    def pars(self):
+        # just for parsing CONDITION !!
+        if len(self.condition_original) == 0:
+            type = 0
+
+            return
+        self.CONDITION = copy.deepcopy(self.condition_original)
+        if ")and(" in self.condition_original[2] and ")or(" in self.condition_original[2]:
+            self.type = 0
+            return
+        elif ")and(" in self.condition_original[2]:
+            self.type = "AND"
+            self.CONDITION = self.condition_original[2].split(")and(")
+        elif ")or(" in self.condition_original[2]:
+            self.type = "OR"
+            self.CONDITION = self.condition_original[2].split(")or(")
+        else:
+            self.CONDITION = [self.condition_original[2][:-1]]
+
+
+        if len(self.trueaction_original) == 0 and len(self.falseaction_original) == 0:
+            self.type = 0
+            return
+        if len(self.CONDITION) == 1:
+            self.CONDITION[0] = [self.CONDITION[0][1:], []]
+        else:
+
+            self.CONDITION[0] = [self.CONDITION[0][1:], []]
+            for i in xrange(1, len(self.CONDITION)-1):
+                self.CONDITION[i] = [self.CONDITION[i], []]
+
+            self.CONDITION[-1] = [self.CONDITION[-1][:-1],  []]
+
+        i = 0
+        for indx in xrange(len(self.CONDITION)):
+            tmp = len(find_strings(self.CONDITION[indx][0], "{}"))
+            if tmp > 0:
+                for ii in xrange(tmp):
+                    self.CONDITION[indx][1].append(self.condition_original[4][i])
+                    i = i + 1
+        # bring to this format:
+        # [ [ [arg1, var1], [arg2, var2] ], type, 0], [ ... ]
+        comp = ["==", "!=", "<=", ">=", "<", ">"]
+
+        for indx in xrange(len(self.CONDITION)):
+            con = self.CONDITION[indx][0]
+            comp_list = []
+
+            for c in comp:
+                temp = find_strings(con, c)
+                if len(temp) == 0:
+                    comp_list.append(99999999)
+                else:
+                    comp_list.append(temp[0])
+
+            m = min(comp_list)
+            type = comp[comp_list.index(m)]
+            self.CONDITION[indx].append(type)
+            self.CONDITION[indx].append(0)
+
+        # END of CONDITION PARSING: result: [['{}{}', [[0, 'a'], [0, 'c']]], ['{}{}', [[0, 'a'], [0, 'a']]], '==']
+
+        #start TrueAction/FaleAction parsing !
+        if self.trueaction_original != []:
+            temp = self.trueaction_original[2].split(")(")
+
+            if len(temp) == 1:
+                self.TRUEACTION = [[temp[0][1:-1],[] ]]
             else:
-                i = i + 1
-        # seperate [TAGS]: be careful, first index in tag is tagname, second is line number, third is the LINE
-        lc0 = -1
-        for i in xrange(len(lines)):
-            if lines[i][0] == "[":
-                self.TAGS.append([[line_numbers[i], lines[i], 1, 0]])
+                self.TRUEACTION.append([temp[0][1:], []])
+                for act in temp[1:-1]:
+                    self.TRUEACTION.append([act, [] ])
 
-                lc0 = lc0 + 1
+                self.TRUEACTION.append([temp[-1][:-1], [] ])
+            if len(self.trueaction_original[4]) != 0:
+                c = 0
+
+                for indx in xrange(len(self.TRUEACTION)):
+                    for x in xrange(len(find_strings(self.TRUEACTION[indx][0], "{}"))):
+                        self.TRUEACTION[indx][1].append(self.trueaction_original[4][c])
+                        c = c + 1
+
+        if self.falseaction_original != []:
+            temp = self.falseaction_original[2].split(")(")
+
+            if len(temp) == 1:
+                self.FALSEACTION = [[temp[0][1:-1],[] ]]
             else:
-                self.TAGS[lc0].append([line_numbers[i], lines[i], 1, 0])
+                self.FALSEACTION.append([temp[0][1:], []])
+                for act in temp[1:-1]:
+                    self.FALSEACTION.append([act, [] ])
 
-        for i in xrange(len(self.TAGS)):
-            if self.TAGS[i][0][1] == "[Variables]":
-                for ii in xrange(1, len(self.TAGS[self.i])):
-                    var_name = self.TAGS[i][ii][1].split("=")[0]
-                    var_content = ""
-                    line = self.TAGS[i][ii][0]
-                    for iii in xrange(1, len(self.TAGS[i][ii][1].split("="))):
-                        var_content = var_content + self.TAGS[i][ii][1].split("=")[iii]
-                        if iii + 1 < len(self.TAGS[i][ii][1].split("=")):
-                            var_content = var_content + "="
-                    self.NAMESPACE[var_name] = var_content
-                    self.NAMESPACE_FUSES[var_name] = [line, 0, 0, 0, 0]
+                self.FALSEACTION.append([temp[-1][:-1], [] ])
+            if len(self.falseaction_original[4]) != 0:
+                c = 0
 
-            if self.TAGS[i][0][1] == "[Calculations]":
-                for ii in xrange(1, len(self.TAGS[i])):
-                    var_name = self.TAGS[i][ii][1].split("=")[0]
-                    var_content = ""
-                    line = self.TAGS[i][ii][0]
-                    for iii in xrange(1, len(self.TAGS[i][ii][1].split("="))):
-                        var_content = var_content + self.TAGS[i][ii][1].split("=")[iii]
-                        if iii + 1 < len(self.TAGS[i][ii][1].split("=")):
-                            var_content = var_content + "="
-                    self.NAMESPACE[var_name] = var_content
-                    self.NAMESPACE_FUSES[var_name] = [line, 1, 0, 0, 0]
-        lc0 = 0
-        for i in xrange(len(self.TAGS)):
-            if self.TAGS[i - lc0][0][1] == "[Variables]":
-                del self.TAGS[i - lc0]
-                lc0 = lc0 + 1
+                for indx in xrange(len(self.FALSEACTION)):
+                    for x in xrange(len(find_strings(self.FALSEACTION[indx][0], "{}"))):
+                        self.FALSEACTION[indx][1].append(self.falseaction_original[4][c])
+                        c = c + 1
 
-            if self.TAGS[i - lc0][0][1] == "[Calculations]":
-                del self.TAGS[i - lc0]
-                lc0 = lc0 + 1
+    def test_condition(self, TAGS, TAG_NAMES, NAME_LIST):
+        self.TAGS = TAGS
+        UPDATED_CONS = []
 
-        self.NAMESPACE_ORIGINAL = deepcopy(self.NAMESPACE)  # backup, dont delete !!
-        self.TAGS_ORIGINAL = deepcopy(self.TAGS)
+        for indx in xrange(len(self.CONDITION)):
+            CON = self.CONDITION[indx]
 
-    def prepars_variable(self, key):
-        self.key = key
-        self.cc = True
-        self.temp0 = find_strings(self.NAMESPACE[self.key], "#")
+            data_list = []
+            for data in CON[1]:
+                if data[0] == 0:
+                    data_list.append(self.Variables.NAMESPACE_CALCULATED[data[1]])
+                else:
+                    data_list.append(self.Variables.SharedInformation.MOD_VARIABLES[data[0]][data[1]])
+            self.CONDITION[indx][3] = CON[0].format(*data_list)
 
-        while self.cc:
-            # Value stuff
+        con_list = []
+        for indx in xrange(len(self.CONDITION)):
+            con = seperate_line(self.CONDITION[indx][3],self.CONDITION[indx][2])
+            con_list.append(compare(con[0], con[1], self.CONDITION[indx][2]))
 
-            self.cc = False
-            if len(self.temp0) > 1:
+        TRUTH = False
+        if len(con_list) == 1:
+            if con_list[0] == True:
+                TRUTH = True
 
-                self.var_name = self.NAMESPACE[self.key][self.temp0[0]+1:self.temp0[1]]
+        if len(con_list) > 1:
+            con = compare(self.type, 0, con_list)
+            if con == True:
+                TRUTH = True
 
-                try:
-                    if self.var_name[0] != "*" and self.var_name[-1] != "*":
-                        self.NAMESPACE[self.var_name]
+        if TRUTH == True:
+            for instr in self.TRUEACTION:
+                data_list = []
+                for data in instr[1]:
+                    if data[0] == 0:
+                        data_list.append(self.Variables.NAMESPACE_CALCULATED[data[1]])
                     else:
-                        self.var_name = "##"
-                except:
-                    self.var_name = "##"
+                        data_list.append(self.Variables.SharedInformation.MOD_VARIABLES[data[0]][data[1]])
 
-                if self.var_name != "##":
-                    self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + self.NAMESPACE[self.var_name] + self.NAMESPACE[self.key][self.temp0[1]+1:]
-                    self.cc = True
-                    self.temp0 = find_strings(self.NAMESPACE[self.key], "#")
+                INSTR = instr[0].format(*data_list)
+
+
+                INSTR = seperate_line(INSTR)
+                ATT = seperate_line(INSTR[0], ".")
+                VAL = INSTR[1]
+                if ATT[1] == "":
+                    tag_name = self.tag_name[1:-1]
+                    att = ATT[0]
+                    if tag_name in NAME_LIST:
+                        idx = NAME_LIST.index(tag_name)
+                        TAGS[idx][att] = VAL
 
                 else:
-                    del self.temp0[0]
-                    self.cc = True
-                    if len(self.temp0) == 0:
-                        self.cc = False
+                    tag_name = ATT[0]
+                    att = ATT[1]
+                    if tag_name in NAME_LIST:
+                        idx = NAME_LIST.index(tag_name)
+                        TAGS[idx][att] = VAL
 
-    def pars_module(self, key):
-        self.standard = "basic"
-        self.key = key
-        self.cc = True
-        self.temp0 = find_strings(self.NAMESPACE[self.key], "$")
-        while self.cc:
-            # Value stuff
+        return TAGS
 
-            self.cc = False
-            if len(self.temp0) > 1:
 
-                self.module = self.NAMESPACE[self.key][self.temp0[0] + 1:self.temp0[1]].split(".")
-                if len(self.module) == 1:
-                    self.module_name = self.standard
-                    self.cmd = self.module[0]
+class Variables():
+    def __init__(self, SharedInformation):
+        self.SharedInformation = SharedInformation
+        self.NAMESPACE = {} # {NAME:[line_number, line, variable_flag, module_flag]
+        self.NAMESPACE_CALCULATED = {}
+        self.USED_MOD_VARS = {}
+        self.var_original = [] # this will never ne changed ! and is the original vars [line_number, data]
+        self.vars = [] # for parsing only
 
+    def pars(self):
+        # bring NAMEPSACE to the given format
+
+        for var in self.var_original:
+
+            try:
+                temp = seperate_line(var[1])
+                if temp[0][0] != "_":
+                    self.NAMESPACE[temp[0]] = [var[0], temp[1], 0, [], 0]
                 else:
-                    self.module_name = self.module[0]
-                    self.cmd = self.module[1]
+                    self.NAMESPACE[temp[0][1:]] = [var[0], temp[1], 0, [], -1]
 
-                try:
-                    if self.module_name[0] != "*" and self.module_name[-1] != "*":
+            except:
+                pass
 
-                        self.MODULES[self.module_name]
+        for VAR in self.NAMESPACE:
+            # 'aa': [3, '%s%s', 0, [[0, 'b'], [0, 'b']]], 'a': [4, '%s%s%s%2*%s%s%s%s', 0, [[0, 'b'], [0, 'aa'], [0, 'b'], [0, 'c'], [0, 'b'], [0, 'aa'], ['basic', 'sec']]]
+            tmp = find_strings(self.NAMESPACE[VAR][1], VARIABLE_STRING)
+            tmp1 = find_strings(self.NAMESPACE[VAR][1], MODULE_STRING)
+            cc = True
+            i = 0
+            ii = 0
+            while cc:
+                cc = False
+
+                first = 1
+
+                # looks if first value is a var or a mod
+                if len(tmp) > 1 and i < len(tmp)-1:
+                    if len(tmp1) != 0:
+                        if tmp[0] > tmp1[0]:
+                            first = 0
+                            i = i - 1
+
+                    var_string = self.NAMESPACE[VAR][1][tmp[i]:tmp[i+1]+1]
+                    var_name = self.NAMESPACE[VAR][1][tmp[i]+1:tmp[i+1]]
+                    if var_string != VARIABLE_STRING+VARIABLE_STRING and var_name in self.NAMESPACE and first == 1:
+
+                        self.NAMESPACE[VAR][3].append([0, var_name])
+                        self.NAMESPACE[VAR][1] = self.NAMESPACE[VAR][1][:tmp[i]] + "{}" + self.NAMESPACE[VAR][1][tmp[i+1]+1:]
+                        tmp = find_strings(self.NAMESPACE[VAR][1], VARIABLE_STRING)
+                        tmp1 = find_strings(self.NAMESPACE[VAR][1], MODULE_STRING)
+                        i = -1
+                        self.NAMESPACE[VAR][2] = 1
+                    i = i + 1
+                    cc = True
+
+                if len(tmp1) > 1 and ii < len(tmp1)-1:
+
+                    mod_string = self.NAMESPACE[VAR][1][tmp1[ii]:tmp1[ii + 1] + 1]
+                    mod_name = self.NAMESPACE[VAR][1][tmp1[ii] + 1:tmp1[ii + 1]].split(".")
+                    try:
+                        self.SharedInformation.MOD_VARIABLES[mod_name[0]][mod_name[1]]
+                        mod = 1
+                    except:
+                        mod = 0
+                    if len(mod_name) > 1 and mod_string != MODULE_STRING + MODULE_STRING and mod == 1:
+                        self.NAMESPACE[VAR][3].append(mod_name)
+                        self.NAMESPACE[VAR][1] = self.NAMESPACE[VAR][1][:tmp1[ii]] + "{}" + self.NAMESPACE[VAR][1][
+                                                                                          tmp1[ii + 1] + 1:]
+                        tmp = find_strings(self.NAMESPACE[VAR][1], VARIABLE_STRING)
+                        tmp1 = find_strings(self.NAMESPACE[VAR][1], MODULE_STRING)
+                        self.NAMESPACE[VAR][2] = 1
+                        ii = -1
+                    ii = ii + 1
+                    cc = True
+
+        for VAR in self.NAMESPACE:
+            di = 0
+            var_flag = copy.deepcopy(self.NAMESPACE[VAR][3])
+            for i in xrange(len(var_flag)):
+                var_list = self.NAMESPACE[VAR][3][i - di]
+                if var_list[0] == 0:
+                    var_name = var_list[1]
+                    if self.NAMESPACE[var_name][2] == 0:
+
+                        var_flag[i] = self.NAMESPACE[var_name][1]
+
+                        del self.NAMESPACE[VAR][3][i - di]
+
+                        di = di + 1
 
                     else:
-                        self.module_name = "$$"
-                except:
-                    self.module_name = "$$"
-
-                if self.module_name != "$$":
-                    self.ret = str(self.MODULES[self.module_name].get(self.cmd))
-                    if self.ret == "None":
-                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
-                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
-                    else:
-                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
-                                                   self.ret + self.NAMESPACE[self.key][self.temp0[1] + 1:]
-                    self.cc = True
-                    self.temp0 = find_strings(self.NAMESPACE[self.key], "$")
-
+                        var_flag[i] = "{}"
                 else:
-                    del self.temp0[0]
-                    self.cc = True
-                    if len(self.temp0) == 0:
-                        self.cc = False
+                    var_flag[i] = "{}"
 
-    def pars_addon(self, key):
-        self.key = key
-        self.cc = True
-        self.temp0 = find_strings(self.NAMESPACE[self.key], "&")
-        while self.cc:
-            # Value stuff
+            string = self.NAMESPACE[VAR][1]
+            self.NAMESPACE[VAR][1] = string.format(*var_flag)
+            if len(self.NAMESPACE[VAR][3]) == 0:
+                self.NAMESPACE[VAR][2] = 0
 
-            self.cc = False
-            if len(self.temp0) > 1:
+        # presolve variable, only mod vars should remain
+        for VAR in self.NAMESPACE:
+            if self.NAMESPACE[VAR][2] != 0:
+                insert_string = []
+                flag_list = copy.deepcopy(self.NAMESPACE[VAR][3])
+                di = 0
+                for i in xrange(len(self.NAMESPACE[VAR][3])):
 
-                self.addon = self.NAMESPACE[self.key][self.temp0[0] + 1:self.temp0[1]].split(".")
-                self.addon_name = self.addon[0]
-                self.cmd = self.addon[1]
+                    if self.NAMESPACE[VAR][3][i][0] == 0:
+                        var_name = self.NAMESPACE[VAR][3][i][1]
+                        insert_string.append(self.NAMESPACE[var_name][1])
+                        del self.NAMESPACE[VAR][3][i - di]
+                        di = di + 1
+                        ii = 0
 
-                try:
-                    if self.addon_name[0] != "*" and self.addon_name[-1] != "*":
-                        self.ADDONS[self.addon_name]
+                        for dat in self.NAMESPACE[var_name][3]:
+                            self.NAMESPACE[VAR][3].insert(i+ii, dat)
+                            ii = ii + 1
+
 
                     else:
-                        self.addon_name = "&&"
-                except:
-                    self.addon_name = "&&"
+                        mod_var = self.SharedInformation.MOD_VARIABLES[self.NAMESPACE[VAR][3][i][0]][self.NAMESPACE[VAR][3][i][1]]
 
-                if self.addon_name != "&&":
-                    self.ret = str(self.ADDONS[self.addon_name].get(self.cmd))
-                    if self.ret == "None":
-                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
-                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
-                    else:
-                        self.NAMESPACE[self.key] = self.NAMESPACE[self.key][:self.temp0[0]] + \
-                                                   str(self.ADDONS[self.addon_name].get(self.cmd)) + \
-                                                   self.NAMESPACE[self.key][self.temp0[1] + 1:]
-                    self.cc = True
-                    self.temp0 = find_strings(self.NAMESPACE[self.key], "&")
+                        insert_string.append({})
+                self.NAMESPACE[VAR][1] = self.NAMESPACE[VAR][1].format(*insert_string)
 
-                else:
-                    del self.temp0[0]
-                    self.cc = True
-                    if len(self.temp0) == 0:
-                        self.cc = False
+        # add used mods to USED_MOD_VARS
+        for VAR in self.NAMESPACE:
+            if len(self.NAMESPACE[VAR][3]) != 0:
+                for mod in self.NAMESPACE[VAR][3]:
+                    try:
 
-    def pars_variable(self):
-        for self._key in self.NAMESPACE.keys():
-
-            if self.NAMESPACE_FUSES[self._key][1] == 1:
-                self.namespace = {}
-                self.prepars_variable(self._key)
-                self.pars_module(self._key)
-                self.formel = "value=" + self.NAMESPACE[self._key]
-                try:
-                    exec self.formel in self.namespace
-                    self.NAMESPACE[self._key] = str(self.namespace["value"])
-                except:
-                    print "Execution Error in line ", self.NAMESPACE_FUSES[self._key][0], ": ",  self.ORIGINAL[self.NAMESPACE_FUSES[self._key][0]-1], self.formel
-
-        for self._key in self.NAMESPACE.keys():
-            if self.NAMESPACE_FUSES[self._key][1] == 0:
-                self.prepars_variable(self._key)
-                self.pars_module(self._key)
-                self.pars_addon(self._key)
-
-    def pars_tags(self):
-        self.PARSED = []
-        for self.i in xrange(len(self.TAGS)):
-            self.tag = []
-            for self.ii in xrange(len(self.TAGS[self.i])):
-                if self.TAGS[self.i][self.ii][2] != 0:
-                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                    self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-
-                    self.cc = True
-                    self.ccc = 0
-
-                    if len(self.temp0) < 2 and len(self.temp1) < 2 and len(self.temp2) < 2:
-                        self.TAGS[self.i][self.ii][2] = 0
-                    else:
-
-                        while self.cc:
-                            self.cc = False
-                            self.ccc = 0
-
-                            # VARIABLE PARSING
-                            if len(self.temp0) > 1 and self.ii != 0:
-
-                                self.var_name = self.TAGS[self.i][self.ii][1][self.temp0[0]+1:self.temp0[1]]
-                                if len(self.var_name) > 0 and self.var_name[0] != "*" and self.var_name[-1] != "*" and self.var_name in self.NAMESPACE:
-
-                                    self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp0[0]] + \
-                                                                    self.NAMESPACE[self.var_name] + self.TAGS[self.i][self.ii][1][self.temp0[1]+1:]
-
-                                    self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                    self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                                    self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-                                else:
-                                    del self.temp0[0]
-                                self.ccc = self.ccc + 1
-
-                                # MODULE PARSING
-                            if len(self.temp1) > 1 and self.ii != 0:
-                                self.module = self.TAGS[self.i][self.ii][1][self.temp1[0] + 1:self.temp1[1]].split(
-                                    ".")
-                                if len(self.module) == 1:
-                                    self.cmd = self.module[0]
-                                    self.module_name = self.standard
-                                else:
-                                    self.module_name = self.module[0]
-                                    self.cmd = self.module[1]
-
-                                if self.module_name in self.MODULES:
-
-                                    self.ret = self.MODULES[self.module_name].get(self.cmd)
-
-                                    if self.ret != None:
-                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][
-                                                                        :self.temp1[0]] + \
-                                                                        str(self.ret) + \
-                                                                        self.TAGS[self.i][self.ii][
-                                                                            1][self.temp1[1] + 1:]
-
-                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-                                    else:
-                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][
-                                                                        :self.temp1[0]] + \
-                                                                        self.TAGS[self.i][self.ii][
-                                                                            1][self.temp1[1] + 1:]
-
-                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-
-
-                                else:
-                                    del self.temp1[0]
-                                self.ccc = self.ccc + 1
-
-                            # ADDON PARSING
-                            if len(self.temp2) > 1 and self.ii != 0:
-                                self.addon = self.TAGS[self.i][self.ii][1][self.temp2[0] + 1:self.temp2[1]].split(".")
-                                if self.addon[0] in self.ADDONS:
-                                    self.cmd = ""
-                                    for self.a in self.addon[1:]:
-                                        self.cmd = self.cmd + self.a + "."
-                                    self.cmd = self.cmd[:-1]
-                                    self.ret = self.ADDONS[self.addon[0]].get(self.cmd)
-                                    if self.ret != None:
-                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp2[0]] + \
-                                                                        str(self.ret) + \
-                                                                        self.TAGS[self.i][self.ii][
-                                                                            1][self.temp2[1] + 1:]
-
-                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-
-                                    else:
-
-                                        self.TAGS[self.i][self.ii][1] = self.TAGS[self.i][self.ii][1][:self.temp2[0]] + \
-                                                                        self.TAGS[self.i][self.ii][
-                                                                            1][self.temp2[1] + 1:]
-
-                                        self.temp0 = find_strings(self.TAGS[self.i][self.ii][1], "#")
-                                        self.temp1 = find_strings(self.TAGS[self.i][self.ii][1], "$")
-                                        self.temp2 = find_strings(self.TAGS[self.i][self.ii][1], "&")
-
-
-                                else:
-                                    del self.temp2[0]
-                                self.ccc = self.ccc + 1
-
-                            if self.ccc != 0:
-                                self.cc = True
-
-    def update(self):
-        self.NAMESPACE = deepcopy(self.NAMESPACE_ORIGINAL)
-        self.TAGS = deepcopy(self.TAGS_ORIGINAL)
-        self.pars_variable()
-        self.pars_tags()
-
-    def get(self):
-        self.update()
-        self.PARSED = []
-        for self.i in xrange(len(self.TAGS)):
-            self.tag = {}
-            for self.ii in xrange(len(self.TAGS[self.i])):
-
-                self.line = self.TAGS[self.i][self.ii][1].split("=")
-                if len(self.line) > 1:
-                    self.str = ""
-                    for self.iii in xrange(1, len(self.line)):
-                        self.str = self.str + self.line[self.iii] + "="
-                    self.str = self.str[0:-1]
-                    self.tag[self.line[0]] = self.str
-
-            self.PARSED.append(self.tag)
-
-        self.conditions()
-        self.addon_do()
-        return self.PARSED
-
-    def conditions(self):
-        for self.i in xrange(len(self.PARSED)):
-            self.con_string = "IfCondition"
-            self.true_string = "IfTrueAction"
-            self.false_string = "IfFalseAction"
-            self.con_count = 0
-            self.cc = True
-            self.IfTrue = False
-            while self.cc:
-                self.cc = False
-                self.IfTrue = False
-                if self.con_string in self.PARSED[self.i]:
-                    if ")&&(" in self.PARSED[self.i][self.con_string]:
-                        self.cons = self.PARSED[self.i][self.con_string].split("&&")
-                        self.and_count = 0
-                        self.and_state = len(self.cons)
-
-                        for self.con in self.cons:
-                            if Widget.test_con(self.con[1:-1]) == True:
-                                self.and_count = self.and_count + 1
-                        if self.and_count == self.and_state:
-                            self.IfTrue = True
-
-
-                    elif ")||(" in self.PARSED[self.i][self.con_string]:
-                        self.cons = self.PARSED[self.i][self.con_string].split("||")
-                        self.or_count = 0
-
-                        for self.con in self.cons:
-                            if Widget.test_con(self.con[1:-1]) == True:
-                                self.or_count = self.or_count + 1
-                        if self.or_count > 0:
-                            self.IfTrue = True
-                    else:
-                        if Widget.test_con(self.PARSED[self.i][self.con_string][1:-1]) == True:
-                            self.IfTrue = True
+                        mod_name = mod[0]
+                        mod_var = mod[1]
+                        self.SharedInformation.MOD_VARIABLES[mod_name][mod_var]
+                        if mod_name in self.USED_MOD_VARS:
+                            self.USED_MOD_VARS[mod_name][mod_var] = 0
                         else:
-                            self.IfTrue = False
-                    self.cc = True
-                    del self.PARSED[self.i][self.con_string]
-                    if self.IfTrue == True:
 
-                        if self.true_string in self.PARSED[self.i]:
-                            self.line = self.PARSED[self.i][self.true_string][1:-1].split("=")
-                            self.att = self.line[0]
-                            self.do = ""
-                            for self.iii in xrange(1, len(self.line)):
-                                self.do = self.do + self.line[self.iii] + "="
-                            self.do = self.do[0:-1]
-                            self.PARSED[self.i][self.att] = self.do
-                            del self.PARSED[self.i][self.true_string]
+                            self.USED_MOD_VARS[mod_name] = {}
+                            self.USED_MOD_VARS[mod_name][mod_var] = 0
+                    except:
+                        pass
+        # setting up list for testing:
+        # test if var is passible to calculate
+        test_array = [random.randint(1,100) for x in xrange(99)]
+
+        for VAR in self.NAMESPACE:
+            if self.NAMESPACE[VAR][4] != -1:
+                formel = "value=" + self.NAMESPACE[VAR][1].format(*test_array)
+                namespace = {}
+                try:
+                    exec formel in namespace
+                    if str(namespace["value"]) != self.NAMESPACE[VAR][1]:
+                        if self.NAMESPACE[VAR][2] == 0:
+                            self.NAMESPACE[VAR][1] = str(namespace["value"])
+
+                        else:
+                            self.NAMESPACE[VAR][4] = 1
+                except:
+                    pass
+            else:
+                self.NAMESPACE[VAR][4] = 0
+
+    def calculate_var(self):
+
+        for VAR in self.NAMESPACE:
+            insert_list = []
+            for mod in self.NAMESPACE[VAR][3]:
+                try:
+                    mod_name = mod[0]
+                    mod_var = mod[1]
+                    insert_list.append(self.SharedInformation.MOD_VARIABLES[mod_name][mod_var])
+                except:
+                    insert_list.append("0")
+
+            if self.NAMESPACE[VAR][4] != 0:
+
+                formel = "value=" + self.NAMESPACE[VAR][1].format(*insert_list)
+                namespace = {}
+                try:
+                    exec formel in namespace
+                    self.NAMESPACE_CALCULATED[VAR] = str(namespace["value"])
+
+                except:
+                    self.NAMESPACE[VAR][4] = 0
+
+            elif self.NAMESPACE[VAR][4] == 0:
+                self.NAMESPACE_CALCULATED[VAR] = str(self.NAMESPACE[VAR][1])
+
+
+
+class Widget():
+
+    def __init__(self,SharedInformation, widget_name):
+
+        self.SharedInformation = SharedInformation
+        self.widget_name = widget_name
+        self.lines = custom_readlines("widgets/" + self.widget_name + "/" + self.widget_name + ".ini")
+        self.USED_MOD_VARS = {}
+
+        self.TAG_NAMES = []
+        self.VARIABLES = Variables(SharedInformation)
+        self.TAGS = []
+        # seperate and preorder the lines
+        t = time.time()
+        self.seperate()
+
+        # pars variables and set static / non static
+        self.VARIABLES.pars()
+        self.USED_MOD_VARS_var = copy.deepcopy(self.VARIABLES.USED_MOD_VARS)
+
+
+        t1 = time.time()
+        self.VARIABLES.calculate_var()
+        for tag in self.TAGS:
+            tag.pars(self.VARIABLES)
+            self.USED_MOD_VARS_tag = copy.deepcopy(tag.USED_MOD_VARS)
+
+        self.USED_MOD_VARS = merge_two_dicts(self.USED_MOD_VARS_var, self.USED_MOD_VARS_tag)
+        # debug information
+        #self.debug()
+
+    def seperate(self):
+        # this seperates self.lines in Tags and variables, also set the line_numbers
+        tags = []
+        line_counter = 1
+        tag_counter = -1
+        for line in self.lines:
+            if line != "":
+                if line[0] == "[" and line[-1] == "]":
+                    tag_counter = tag_counter + 1
+                    tags.append([])
+                    tags[tag_counter].append([line_counter, line])
+                elif line[0] != "#":
+                    tags[tag_counter].append([line_counter, line])
+            line_counter = line_counter + 1
+
+        for tag in tags:
+           #if tag[0][1] == "[Calculations]":
+                #self.VARIABLES.var_original = tag[1:]
+            if tag[0][1] == "[Variables]":
+                self.VARIABLES.var_original = tag[1:]
+            else:
+
+                self.TAG_NAMES.append(tag[0][1][1:-1])
+                self.TAGS.append(Tag(tag[0][1]))
+                self.TAGS[-1].tag_original = tag[1:]
+
+    def debug(self):
+        print
+        print ">> DEBUG <<"
+        # Debug function for programming only
+        #print "[Variables] :", self.VARIABLES.var_original
+        print self.VARIABLES.NAMESPACE
+        print self.VARIABLES.NAMESPACE_CALCULATED
+
+    def update(self, forece_update=0):
+
+        do_update = 0
+        for mod_name in self.USED_MOD_VARS:
+            for var_name in self.USED_MOD_VARS[mod_name]:
+                if self.USED_MOD_VARS[mod_name][var_name] != self.SharedInformation.MOD_VARIABLES[mod_name][var_name]:
+                    do_update = 1
+        if do_update == 0 and forece_update == 0:
+            return []
+
+        for mod_name in self.USED_MOD_VARS:
+            for var_name in self.USED_MOD_VARS[mod_name]:
+                if self.USED_MOD_VARS[mod_name][var_name] != self.SharedInformation.MOD_VARIABLES[mod_name][var_name]:
+                    self.USED_MOD_VARS[mod_name][var_name] = self.SharedInformation.MOD_VARIABLES[mod_name][var_name]
+
+        t = time.time()
+        self.VARIABLES.calculate_var()
+        updated = []
+        for tag in self.TAGS:
+            updated.append({})
+            for line in tag.LINES:
+                var_list = []
+                for var in line[4]:
+                    if var[0] == 0:
+                        var_list.append(self.VARIABLES.NAMESPACE_CALCULATED[var[1]])
                     else:
-                        if self.false_string in self.PARSED[self.i]:
-                            self.line = self.PARSED[self.i][self.false_string][1:-1].split("=")
-                            self.att = self.line[0]
-                            self.do = ""
-                            for self.iii in xrange(1, len(self.line)):
-                                self.do = self.do + self.line[self.iii] + "="
-                            self.do = self.do[0:-1]
-                            self.PARSED[self.i][self.att] = self.do
-                            del self.PARSED[self.i][self.false_string]
+                        var_list.append(self.SharedInformation.MOD_VARIABLES[var[0]][var[1]])
+                updated[-1][line[1]] = line[2].format(*var_list)
+
+        for indx in xrange(len(self.TAGS)):
+            tag = self.TAGS[indx]
+            updated_tag = tag.condition_update(updated, self.TAG_NAMES)
+
+        return updated
 
 
-
-                self.con_count = self.con_count + 1
-                self.con_string = "IfCondition" + str(self.con_count)
-                self.true_string = "IfTrueAction" + str(self.con_count)
-                self.false_string = "IfFalseAction" + str(self.con_count)
-
-    def addon_do(self):
-        self.c = 0
-        for self.i in xrange(len(self.PARSED)):
-            if "type" in self.PARSED[self.i] and self.PARSED[self.i]["type"] == "addon" and "command" in self.PARSED[
-                self.i] and "name" in self.PARSED[self.i]:
-                if self.PARSED[self.i]["name"] in self.ADDONS:
-                    self.ADDONS[self.PARSED[self.i]["name"]].do(self.PARSED[self.i]["command"])
-                del self.PARSED[self.i]
-                self.i = self.i - 1
-
-    @staticmethod
-    def set_module_vars(mod_vars):
-        Widget.GLOBAL_VARS = deepcopy(mod_vars)
-
-    @staticmethod
-    def test_con(con):
-
-        if ">=" in con:
-            con = con.split(">=")
-            if len(con) >= 2 and float(con[0]) >= float(con[1]):
-                return True
-        elif ">" in con:
-            con = con.split(">")
-            if len(con) >= 2 and float(con[0]) > float(con[1]):
-                return True
-        elif "<=" in con:
-            con = con.split("<=")
-            if len(con) >= 2 and float(con[0]) <= float(con[1]):
-                return True
-        elif "<" in con:
-            con = con.split("<")
-            if len(con) >= 2 and float(con[0]) < float(con[1]):
-                return True
-        elif "==" in con:
-            con = con.split("==")
-            if len(con) >= 2 and str(con[0]) == str(con[1]):
-                return True
-        elif "!=" in con:
-            con = con.split("!=")
-            if len(con) >= 2 and str(con[0]) != str(con[1]):
-                return True
-        return False
+#############################################################
 
 # interprets widgets and render for display driver
 class WidgetInterpreter():
     PIXEL_BUFFER = []
     PIXEL_BUFFER1 = []
 
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    def __init__(self, SharedInformation):
+        self.SharedInformation = SharedInformation
+        self.width = self.SharedInformation.width
+        self.height = self.SharedInformation.height
 
         self.ERROR = 0
 
@@ -506,46 +676,48 @@ class WidgetInterpreter():
         self.ERROR = 0
         for self.i in xrange(len(self.parsed)):
             self.gfx_mgr(self.parsed[self.i])
-        # print self.PIXEL_BUFFER
-        # print ">> Interpretion ERRORS: ", self.ERROR
+
+        return deepcopy(self.PIXEL_BUFFER)
 
     def gfx_mgr(self, tag):
-        self.tag = tag
-        if "type" in self.tag:
+        if "type" in tag:
 
-            self.type = self.tag["type"]
-            if self.type == "none":
+            type = tag["type"]
+            if type == "none":
                 self.gfx_none()
-            elif self.type == "line":
-                self.gfx_line(self.tag)
-            elif self.type == "point":
-                self.gfx_point(self.tag)
-            elif self.type == "text":
-                self.gfx_text(self.tag)
-            elif self.type == "rect":
-                self.gfx_rect(self.tag)
-            elif self.type == "source":
-                self.gfx_src(self.tag)
-        else:
-            print "Interpretation Error: type missing!"
+            elif type == "line":
+                self.gfx_line(tag)
+            elif type == "point":
+                self.gfx_point(tag)
+            elif type == "text":
+                self.gfx_text(tag)
+            elif type == "rect":
+                self.gfx_rect(tag)
+            elif type == "source":
+                self.gfx_src(tag)
+            elif type == "scrolled_text":
+                self.gfx_scrolled_text(tag)
 
     def gfx_none(self):
         pass
 
     def set_options(self, options, tag):
-        for self.t in tag.keys():
+        for t in tag.keys():
             # insert here special options like text is a string, colour a list etc
-            if self.t == "colour":
-                self.col = tag[self.t].split(",")
-                options[self.t] == [int(self.col[0]), int(self.col[1]), int(self.col[2])]
-            elif self.t == "text":
+            if t == "colour":
+                col = tag[t].split(",")
+                options[t] == [int(col[0]), int(col[1]), int(col[2])]
+            elif t == "text":
+                options[t] = tag[t]
 
-                self.options[self.t] = tag[self.t]
             else:
+
                 try:
-                    self.options[self.t] = int(tag[self.t])
+                    options[t] = int(tag[t])
                 except ValueError:
-                    options[self.t] = tag[self.t]
+                    options[t] = tag[t]
+                except KeyError:
+                    pass
         return options
 
     def gfx_text(self, tag):
@@ -647,39 +819,108 @@ class WidgetInterpreter():
             self.ERROR = self.ERROR + 1
 
     def gfx_src(self, tag):
-        self._tag = tag
-        self.options = {"startx": 0, "starty": 0, "source":0, "colour":[1, 1, 1]}
-        self.options = self.set_options(self.options, self._tag)
-        self.startx = self.options["startx"]
-        self.starty = self.options["starty"]
-        self.source = self.options["source"]
-        self.colour = self.options["colour"]
+        options = {"startx": 0, "starty": 0, "source":0, "colour":[1, 1, 1]}
+        options = self.set_options(self.options, tag)
+        startx = options["startx"]
+        starty = options["starty"]
+        source = options["source"]
+        colour = options["colour"]
 
-        if self.source != 0:
-            if self.source[0] == "*":
-                self.px_data = self.SOURCES.get_widget_source(self.source[1:], self.widget_name)
+        self._tag = tag
+        self.options = {"startx": 0, "starty": 0, "colour": [1, 1, 1], "text": "", "font_name": "default5x3", }
+        self.options = self.set_options(self.options, self._tag)
+        try:
+            self.startx = self.options["startx"]
+            self.starty = self.options["starty"]
+            self.colour = self.options["colour"]
+            self.text = str(self.options["text"])
+            self.font_name = self.options["font_name"]
+            self.x = self.startx
+            self.y = self.starty
+            self.c = 0
+
+            for self.i in xrange(len(self.text)):
+                self.char = self.text[self.i]
+                if self.char == " ":
+                    self.char = "SPACE"
+                self.px_data = self.FONTS.get_char_from_font(self.font_name, self.char)
+                self.y = self.starty
+
+                if self.x < len(self.PIXEL_BUFFER1):
+                    for self.ii in xrange(len(self.px_data)):
+                        self.x = self.startx + self.c
+                        for self.iii in xrange(len(self.px_data[0])):
+                            if self.px_data[self.ii][self.iii] != "0" and self.x < self.width and self.y < self.height:
+                                WidgetInterpreter.PIXEL_BUFFER[self.x][self.y] = self.colour
+                            self.x = self.x + 1
+                        self.y = self.y + 1
+                    self.c = self.c + len(self.px_data[0]) + 1
+        except IOError:
+            self.ERROR = self.ERROR + 1
+            pass
+
+        if source != 0:
+            if source[0] == "*":
+                px_data = self.SOURCES.get_widget_source(source[1:], self.widget_name)
             else:
-                self.px_data = self.SOURCES.get_source(self.source)
+                px_data = self.SOURCES.get_source(source)
             try:
-                for self.y in xrange(len(self.px_data)):
-                    for self.x in xrange(len(self.px_data[self.y])):
-                        self.xx = self.startx + self.x
-                        self.yy = self.starty + self.y
-                        if self.px_data[self.y][self.x] == 1:
-                            self.PIXEL_BUFFER[self.xx][self.yy] = self.colour
+                for y in xrange(len(px_data)):
+                    for x in xrange(len(px_data[y])):
+                        xx = startx + x
+                        yy = starty + y
+                        if px_data[y][x] == 1:
+                            self.PIXEL_BUFFER[xx][yy] = colour
 
             except:
                 self.ERROR = self.ERROR + 1
 
-    def gpio_handling(self):
-        pass
-    def emulated_gpio_handling(self):
-        self.MODULE["GPIO0"] = 0
-        self.MODULE["GPIO1"] = 0
-        self.MODULE["GPIO2"] = 0
-        self.MODULE["GPIO3"] = 0
-        self.MODULE["GPIO4"] = 0
+    def gfx_scrolled_text(self, tag):
+        options = {"startx": 0, "starty": 0, "text": 0, "colour" : [1, 1, 1], "overscan" : 0, "endx" : 9999,  "text": "", "font_name": "default5x3", "direction" : 1}
+        options = self.set_options(options, tag)
+        startx = options["startx"]
+        starty = options["starty"]
+        endx = options["endx"]
+        colour = options["colour"]
+        text = options["text"]
+        overscan = options["overscan"]
+        font_name = options["font_name"]
+        direction = options["direction"]
+        try:
+            x = startx
+            y = starty
+            c = 0
+            text_length = 0
+            for i in xrange(len(text)):
+                char = text[i]
+                px_data = self.FONTS.get_char_from_font(font_name, char)
+                text_length = text_length + len(px_data[0]) + 1
 
+            text_length = text_length - 1
+            overscan = (overscan % text_length) * direction
+            for i in xrange(len(text)):
+
+                char = text[i]
+                if char == " ":
+                    char = "SPACE"
+                px_data = self.FONTS.get_char_from_font(font_name, char)
+                y = starty
+
+                if x - overscan < len(self.PIXEL_BUFFER):
+                    for ii in xrange(len(px_data)):
+                        x = startx + c
+                        for iii in xrange(len(px_data[0])):
+                            real_x = x - overscan
+                            if px_data[ii][iii] != "0" and real_x < self.width and y < self.height and real_x < endx and real_x >= startx:
+
+                                WidgetInterpreter.PIXEL_BUFFER[real_x][y] = colour
+                            x = x + 1
+                        y = y + 1
+                    c = c + len(px_data[0]) + 1
+                else:
+                    pass
+        except IOError:
+            self.ERROR = self.ERROR + 1
 
 
 # managing fonts ( Subclass of WidgetInterpreter)
@@ -805,8 +1046,16 @@ class Sources():
 
         return self.WIDGET_SOURCES[widget_name][src_name]
 
-def find_strings(string, to_find):
-    return [i for i in range(len(string)) if string.startswith(to_find, i)]
+def seperate_line(string, str="="):
+    line = string.split(str)
+    att = line[0]
+    string = ""
+
+    for c in line[1:]:
+        string = string + c + str
+    string = string[:-len(str)]
+    data = [att, string]#
+    return data
 
 def custom_readlines(path):
     w = open(path)
@@ -820,7 +1069,86 @@ def custom_readlines(path):
         else:
             lines.append(line)
     w.close()
-
     return lines
+
+def find_strings(string, to_find):
+    return [i for i in range(len(string)) if string.startswith(to_find, i)]
+
+def compare(arg1, arg2, cmp):
+
+    if type(cmp) == list:
+        c_count = 0
+        for c in xrange(len(cmp)-1):
+
+            if cmp[c] == True:
+                c_count = c_count + 1
+
+        if arg1 == "AND":
+
+            if c_count == len(cmp)-1:
+                return True
+            else:
+                return False
+        elif arg1 == "OR":
+            if c_count > 0:
+                return True
+            else:
+                return False
+        else:
+            return False
+    elif cmp == "==" or cmp == "!=":
+        arg1 = str(arg1)
+        arg2 = str(arg2)
+        if cmp == "==":
+            if arg1 == arg2:
+                return True
+            else:
+                return False
+        elif cmp == "!=":
+            if arg1 != arg2:
+                return True
+            else:
+                return False
+        else:
+            return False
+    elif cmp == "<" or cmp == ">" or cmp == "<=" or cmp == ">=":
+        try:
+            arg1 = float(arg1)
+            arg2 = float(arg2)
+
+            if cmp == "<":
+                if arg1 < arg2:
+                    return True
+                else:
+                    return False
+            elif cmp == ">":
+                if arg1 > arg2:
+                    return True
+                else:
+                    return False
+            elif cmp == "<=":
+                if arg1 <= arg2:
+                    return True
+                else:
+                    return False
+            elif cmp == ">=":
+                if arg1 >= arg2:
+                    return True
+                else:
+                    return False
+            else:
+                return False
+
+        except:
+            return False
+    else:
+        return False
+
+def merge_two_dicts(x, y):
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z
+
+
 
 

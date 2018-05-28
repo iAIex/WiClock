@@ -1,7 +1,8 @@
 import time
 import datetime
 class Module():
-    def __init__(self):
+    def __init__(self, SharedInformation):
+        self.SharedInformation = SharedInformation
         self.MODULE = {}
 
     def update(self):
@@ -17,9 +18,5 @@ class Module():
         self.MODULE["dates"] = time.asctime().split()[2]
         self.MODULE["date"] = str(int(time.asctime().split()[2]))
         self.MODULE["year"] = time.asctime().split()[4]
-
-    def get(self, cmd):
-        try:
-            return self.MODULE[cmd]
-        except:
-            return None
+        self.MODULE["UTC"] = str(time.time())
+        return self.MODULE

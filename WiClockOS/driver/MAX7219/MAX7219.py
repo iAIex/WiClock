@@ -24,10 +24,10 @@ class driver():
     REG_SHUTDOWN = 0xC
     REG_DISPLAYTEST = 0xF
 
-    def __init__(self, WidgetMgr, width, height):
-        self.WidgetMgr = WidgetMgr
-        self.width = width
-        self.height = height
+    def __init__(self,SharedInformation):
+        self.SharedInformation = SharedInformation
+        self.width = self.SharedInformation.width
+        self.height = self.SharedInformation.height
         self.spi = spidev.SpiDev()
         self.spi.open(0, 0)
         self.spi.max_speed_hz = 976000
@@ -37,7 +37,8 @@ class driver():
         self.send_all_reg_byte(self.REG_DECODEMODE, 0)  # using a LED matrix (not digits)
         self.send_all_reg_byte(self.REG_DISPLAYTEST, 0)  # no display test
         self.send_all_reg_byte(self.REG_SHUTDOWN, 1)
-        self.Brightness = self.WidgetMgr.DISPLAY_INFOS[2]
+
+        self.Brightness = self.SharedInformation.brightness
 
         print ">> Serial Interface loaded!"
 
@@ -86,8 +87,6 @@ class driver():
     ##########################################################################
 
     def draw(self):
-        # print 111
-
         if self.PIXEL_BUFFER_DIPLAYED != self.PIXEL_BUFFER:
             # self.clear_all()
             for self.matrix in xrange(self.NUM_MATRICES):
